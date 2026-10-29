@@ -151,5 +151,5 @@ Logs: `~/Library/Logs/agentbar.log`.
 - Keep `layout.py` pure; put device I/O in `sink.py`.
 - Code is formatted with `ruff format` and must pass `ruff check` (rules in
   `pyproject.toml`).
-- No merge commits, only rebase: merge PRs with rebase, and update branches by
+- No merge commits: merge PRs with squash or rebase, and update branches by
   rebasing onto `main`, never by merging `main` in.
