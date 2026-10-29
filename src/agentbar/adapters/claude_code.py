@@ -60,7 +60,11 @@ def normalize(payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
     if name == "PermissionRequest":
         return state(AgentState.NEEDS_INPUT, tool)
     if name == "Notification":
-        return state(AgentState.NEEDS_INPUT, payload.get("notification_type")) if _needs_input_notification(payload) else touch
+        return (
+            state(AgentState.NEEDS_INPUT, payload.get("notification_type"))
+            if _needs_input_notification(payload)
+            else touch
+        )
     if name == "Stop":
         return state(AgentState.DONE)
     if name == "SessionEnd":

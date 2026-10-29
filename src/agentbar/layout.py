@@ -70,7 +70,7 @@ def render(sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True) ->
     shown = select(sessions, cfg)
     x0 = region_x(cfg)
     out: dict[str, dict] = {}
-    for slot, (s, label) in enumerate(zip(shown, labels(shown, cfg.name_chars))):
+    for slot, (s, label) in enumerate(zip(shown, labels(shown, cfg.name_chars), strict=True)):
         color = cfg.colors[s.state]
         if s.state is AgentState.NEEDS_INPUT and not blink_on:
             color = dim(color, cfg.dim_factor)

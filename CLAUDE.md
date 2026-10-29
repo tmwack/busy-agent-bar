@@ -135,7 +135,9 @@ agentbar install                 # hooks + launchd agent; --no-agent = hooks onl
 agentbar status                  # tracked sessions, bar reachability
 agentbar run --dry-run -v        # foreground, no bar (stop the agent or set AGENTBAR_SOCKET)
 agentbar uninstall
-uv run --extra dev pytest
+uv run pytest
+uv run ruff format               # format
+uv run ruff check                # lint (--fix to autofix)
 ```
 
 Logs: `~/Library/Logs/agentbar.log`.
@@ -147,3 +149,7 @@ Logs: `~/Library/Logs/agentbar.log`.
 - Keep `hook.py` stdlib-only and fail-silent. It runs on every tool call and
   must never block or break the harness.
 - Keep `layout.py` pure; put device I/O in `sink.py`.
+- Code is formatted with `ruff format` and must pass `ruff check` (rules in
+  `pyproject.toml`).
+- No merge commits: merge PRs with squash or rebase, and update branches by
+  rebasing onto `main`, never by merging `main` in.

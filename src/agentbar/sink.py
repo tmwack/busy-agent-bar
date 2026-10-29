@@ -3,6 +3,7 @@ is on the display and sends only changes."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import time
@@ -26,9 +27,7 @@ class BusyBarSink:
     ) -> None:
         self.cfg = cfg
         self.retry_s = retry_s
-        self.client = client or AsyncBusyBar(
-            cfg.host, token=cfg.token or None, timeout=cfg.timeout_s, max_retries=0
-        )
+        self.client = client or AsyncBusyBar(cfg.host, token=cfg.token or None, timeout=cfg.timeout_s, max_retries=0)
         self._clock = clock
         self._drawn: dict[str, dict] = {}
         self._blocked_until = 0.0
@@ -78,10 +77,9 @@ class BusyBarSink:
                 if not self.blocked:
                     log.info("bar busy (409), hiding until it ends")
                 self.blocked = True
-                try:  # hide anything drawn before the session started
+                # Hide anything drawn before the session started.
+                with contextlib.suppress(BusyBarError):
                     await self.client.display_clear(application_name=app)
-                except BusyBarError:
-                    pass
             else:
                 log.warning("draw rejected: %s", exc)
         except BusyBarError as exc:
@@ -111,9 +109,5 @@ class LogSink:
         if desired == self._last:
             return
         self._last = desired
-        tiles = [
-            {"text": e["text"], "color": e["color"], "x": e["x"]}
-            for e in desired.values()
-            if e["type"] == "text"
-        ]
+        tiles = [{"text": e["text"], "color": e["color"], "x": e["x"]} for e in desired.values() if e["type"] == "text"]
         log.info("render %s", json.dumps(tiles))

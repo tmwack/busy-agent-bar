@@ -135,5 +135,7 @@ The forwarder sends only top-level scalar fields of the hook payload.
 ## Development
 
 ```sh
-uv run --extra dev pytest
+uv run pytest
+uv run ruff format     # format
+uv run ruff check      # lint
 ```
