@@ -6,15 +6,15 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = ["busylib>=2.6,<3"]
 
-[project.optional-dependencies]
+[project.scripts]
+agentbar = "agentbar.cli:main"
+agentbar-hook = "agentbar.hook:main"
+
+[dependency-groups]
 dev = [
     "pytest>=8",
     "ruff>=0.17.3",
 ]
-
-[project.scripts]
-agentbar = "agentbar.cli:main"
-agentbar-hook = "agentbar.hook:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -135,9 +135,9 @@ agentbar install                 # hooks + launchd agent; --no-agent = hooks onl
 agentbar status                  # tracked sessions, bar reachability
 agentbar run --dry-run -v        # foreground, no bar (stop the agent or set AGENTBAR_SOCKET)
 agentbar uninstall
-uv run --extra dev pytest
-uv run --extra dev ruff format     # format
-uv run --extra dev ruff check      # lint (--fix to autofix)
+uv run pytest
+uv run ruff format               # format
+uv run ruff check                # lint (--fix to autofix)
 ```
 
 Logs: `~/Library/Logs/agentbar.log`.
