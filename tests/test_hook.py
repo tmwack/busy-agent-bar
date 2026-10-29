@@ -14,7 +14,9 @@ def test_scalars_drops_bulk_and_truncates():
 
 def test_no_daemon_is_silent_and_exits_zero(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("AGENTBAR_SOCKET", str(tmp_path / "none.sock"))
-    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(b'{"session_id":"s"}')))
+    monkeypatch.setattr(
+        "sys.stdin", io.TextIOWrapper(io.BytesIO(b'{"session_id":"s"}'))
+    )
     assert hook.main(["claude-code"]) == 0
     assert capsys.readouterr() == ("", "")
 
@@ -36,12 +38,17 @@ def test_forwards_to_socket(monkeypatch, tmp_path):
     t = threading.Thread(target=accept)
     t.start()
     payload = {"session_id": "s", "hook_event_name": "Stop", "tool_input": {"x": 1}}
-    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(json.dumps(payload).encode())))
+    monkeypatch.setattr(
+        "sys.stdin", io.TextIOWrapper(io.BytesIO(json.dumps(payload).encode()))
+    )
     assert hook.main(["claude-code", "--resolve-pid"]) == 0
     t.join(2)
     server.close()
     msg = got["msg"]
-    assert msg["source"] == "claude-code" and msg["payload"] == {"session_id": "s", "hook_event_name": "Stop"}
+    assert msg["source"] == "claude-code" and msg["payload"] == {
+        "session_id": "s",
+        "hook_event_name": "Stop",
+    }
     assert msg["pid"] == 4242
 
 

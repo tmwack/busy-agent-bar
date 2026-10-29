@@ -58,12 +58,18 @@ class BusyBarSink:
             return
         try:
             if removed:
-                await self.client.display_clear(element_ids=removed, application_name=app)
+                await self.client.display_clear(
+                    element_ids=removed, application_name=app
+                )
                 for i in removed:
                     self._drawn.pop(i, None)
             if changed:
                 await self.client.display_draw(
-                    {"application_name": app, "priority": self.cfg.priority, "elements": changed}
+                    {
+                        "application_name": app,
+                        "priority": self.cfg.priority,
+                        "elements": changed,
+                    }
                 )
                 self._drawn.update({e["id"]: e for e in changed})
             if self.blocked or not self.reachable:

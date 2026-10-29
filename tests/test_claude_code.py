@@ -3,7 +3,12 @@ from agentbar.model import AgentState, EventKind
 
 
 def ev(name, **extra):
-    return normalize("claude-code", {"session_id": "s1", "cwd": "/w/proj", "hook_event_name": name, **extra}, 1.0, None)
+    return normalize(
+        "claude-code",
+        {"session_id": "s1", "cwd": "/w/proj", "hook_event_name": name, **extra},
+        1.0,
+        None,
+    )
 
 
 def test_state_mapping():
@@ -12,7 +17,10 @@ def test_state_mapping():
     assert ev("PreToolUse", tool_name="AskUserQuestion").state is AgentState.NEEDS_INPUT
     assert ev("PostToolUse", tool_name="Bash").state is AgentState.WORKING
     assert ev("PermissionRequest", tool_name="Bash").state is AgentState.NEEDS_INPUT
-    assert ev("Notification", notification_type="permission_prompt").state is AgentState.NEEDS_INPUT
+    assert (
+        ev("Notification", notification_type="permission_prompt").state
+        is AgentState.NEEDS_INPUT
+    )
     assert ev("Stop").state is AgentState.DONE
     assert ev("SessionStart", source="startup").state is AgentState.IDLE
     assert ev("SessionEnd").kind is EventKind.END
@@ -25,9 +33,15 @@ def test_non_state_events_touch():
 
 
 def test_legacy_notification_without_type():
-    assert ev("Notification", message="Claude needs your permission to use Bash").state is AgentState.NEEDS_INPUT
+    assert (
+        ev("Notification", message="Claude needs your permission to use Bash").state
+        is AgentState.NEEDS_INPUT
+    )
 
 
 def test_rejects_incomplete_and_unknown_source():
     assert normalize("claude-code", {"hook_event_name": "Stop"}, 1.0, None) is None
-    assert normalize("other", {"session_id": "s", "hook_event_name": "Stop"}, 1.0, None) is None
+    assert (
+        normalize("other", {"session_id": "s", "hook_event_name": "Stop"}, 1.0, None)
+        is None
+    )

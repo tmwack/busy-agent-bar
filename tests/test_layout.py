@@ -34,7 +34,10 @@ def test_overflow_prefers_higher_priority_keeps_order():
 
 def test_render_positions_and_blink():
     cfg = LayoutConfig()
-    ss = [s("a", "/w/api", AgentState.WORKING, 1), s("b", "/w/web", AgentState.NEEDS_INPUT, 2)]
+    ss = [
+        s("a", "/w/api", AgentState.WORKING, 1),
+        s("b", "/w/web", AgentState.NEEDS_INPUT, 2),
+    ]
     on = render(ss, cfg, blink_on=True)
     off = render(ss, cfg, blink_on=False)
     assert on["11"]["x"] == 35 and on["21"]["x"] == 54

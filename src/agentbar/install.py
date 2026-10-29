@@ -49,7 +49,11 @@ def _strip_ours(hooks: dict) -> dict:
     for event, groups in hooks.items():
         kept_groups = []
         for group in groups:
-            inner = [h for h in group.get("hooks", []) if MARKER not in str(h.get("command", ""))]
+            inner = [
+                h
+                for h in group.get("hooks", [])
+                if MARKER not in str(h.get("command", ""))
+            ]
             if inner:
                 kept_groups.append({**group, "hooks": inner})
         if kept_groups:
@@ -60,8 +64,14 @@ def _strip_ours(hooks: dict) -> dict:
 def merge_hooks(settings: dict, hook_exe: Path) -> dict:
     hooks = _strip_ours(settings.get("hooks", {}))
     for event, (matcher, resolve_pid) in CLAUDE_EVENTS.items():
-        command = f"{shlex.quote(str(hook_exe))} claude-code" + (" --resolve-pid" if resolve_pid else "")
-        group: dict = {"hooks": [{"type": "command", "command": command, "timeout": HOOK_TIMEOUT_S}]}
+        command = f"{shlex.quote(str(hook_exe))} claude-code" + (
+            " --resolve-pid" if resolve_pid else ""
+        )
+        group: dict = {
+            "hooks": [
+                {"type": "command", "command": command, "timeout": HOOK_TIMEOUT_S}
+            ]
+        }
         if matcher is not None:
             group = {"matcher": matcher, **group}
         hooks.setdefault(event, []).append(group)

@@ -40,7 +40,13 @@ def normalize(payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
         return None
 
     tool = payload.get("tool_name")
-    common = dict(source=SOURCE, session_id=str(session_id), ts=ts, cwd=payload.get("cwd"), pid=pid)
+    common = dict(
+        source=SOURCE,
+        session_id=str(session_id),
+        ts=ts,
+        cwd=payload.get("cwd"),
+        pid=pid,
+    )
 
     def state(s: AgentState, detail: str | None = None) -> AgentEvent:
         return AgentEvent(kind=EventKind.STATE, state=s, detail=detail, **common)
@@ -60,7 +66,11 @@ def normalize(payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
     if name == "PermissionRequest":
         return state(AgentState.NEEDS_INPUT, tool)
     if name == "Notification":
-        return state(AgentState.NEEDS_INPUT, payload.get("notification_type")) if _needs_input_notification(payload) else touch
+        return (
+            state(AgentState.NEEDS_INPUT, payload.get("notification_type"))
+            if _needs_input_notification(payload)
+            else touch
+        )
     if name == "Stop":
         return state(AgentState.DONE)
     if name == "SessionEnd":

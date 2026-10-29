@@ -18,6 +18,8 @@ NORMALIZERS: dict[str, Normalizer] = {
 }
 
 
-def normalize(source: str, payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
+def normalize(
+    source: str, payload: dict, ts: float, pid: int | None
+) -> AgentEvent | None:
     fn = NORMALIZERS.get(source)
     return fn(payload, ts, pid) if fn else None
