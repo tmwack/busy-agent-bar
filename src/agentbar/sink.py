@@ -27,9 +27,7 @@ class BusyBarSink:
     ) -> None:
         self.cfg = cfg
         self.retry_s = retry_s
-        self.client = client or AsyncBusyBar(
-            cfg.host, token=cfg.token or None, timeout=cfg.timeout_s, max_retries=0
-        )
+        self.client = client or AsyncBusyBar(cfg.host, token=cfg.token or None, timeout=cfg.timeout_s, max_retries=0)
         self._clock = clock
         self._drawn: dict[str, dict] = {}
         self._blocked_until = 0.0
@@ -59,18 +57,12 @@ class BusyBarSink:
             return
         try:
             if removed:
-                await self.client.display_clear(
-                    element_ids=removed, application_name=app
-                )
+                await self.client.display_clear(element_ids=removed, application_name=app)
                 for i in removed:
                     self._drawn.pop(i, None)
             if changed:
                 await self.client.display_draw(
-                    {
-                        "application_name": app,
-                        "priority": self.cfg.priority,
-                        "elements": changed,
-                    }
+                    {"application_name": app, "priority": self.cfg.priority, "elements": changed}
                 )
                 self._drawn.update({e["id"]: e for e in changed})
             if self.blocked or not self.reachable:
@@ -117,9 +109,5 @@ class LogSink:
         if desired == self._last:
             return
         self._last = desired
-        tiles = [
-            {"text": e["text"], "color": e["color"], "x": e["x"]}
-            for e in desired.values()
-            if e["type"] == "text"
-        ]
+        tiles = [{"text": e["text"], "color": e["color"], "x": e["x"]} for e in desired.values() if e["type"] == "text"]
         log.info("render %s", json.dumps(tiles))

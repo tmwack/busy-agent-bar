@@ -15,14 +15,10 @@ def test_merge_is_idempotent_and_preserves_other_hooks():
     assert twice["model"] == "opus"
     pre = twice["hooks"]["PreToolUse"][0]
     assert pre["matcher"] == "*" and "--resolve-pid" not in pre["hooks"][0]["command"]
-    assert (
-        "--resolve-pid" in twice["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
-    )
+    assert "--resolve-pid" in twice["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
 
 
 def test_remove_leaves_only_other_hooks():
-    merged = merge_hooks(
-        {"hooks": {"Stop": [{"hooks": [OTHER]}]}}, Path("/bin/agentbar-hook")
-    )
+    merged = merge_hooks({"hooks": {"Stop": [{"hooks": [OTHER]}]}}, Path("/bin/agentbar-hook"))
     assert remove_hooks(merged) == {"hooks": {"Stop": [{"hooks": [OTHER]}]}}
     assert remove_hooks(merge_hooks({}, Path("/bin/agentbar-hook"))) == {}

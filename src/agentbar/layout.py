@@ -20,10 +20,7 @@ FRONT_HEIGHT = 16
 def region_x(cfg: LayoutConfig) -> int:
     width = cfg.max_tiles * cfg.tile_width + (cfg.max_tiles - 1) * cfg.gap
     if width > FRONT_WIDTH:
-        raise ValueError(
-            f"{cfg.max_tiles} tiles x {cfg.tile_width}px "
-            f"does not fit in {FRONT_WIDTH}px"
-        )
+        raise ValueError(f"{cfg.max_tiles} tiles x {cfg.tile_width}px does not fit in {FRONT_WIDTH}px")
     if cfg.x is None:
         return FRONT_WIDTH - width
     if cfg.x < 0 or cfg.x + width > FRONT_WIDTH:
@@ -69,15 +66,11 @@ def element_ids(slot: int) -> tuple[str, str]:
     return str(base), str(base + 1)
 
 
-def render(
-    sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True
-) -> dict[str, dict]:
+def render(sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True) -> dict[str, dict]:
     shown = select(sessions, cfg)
     x0 = region_x(cfg)
     out: dict[str, dict] = {}
-    for slot, (s, label) in enumerate(
-        zip(shown, labels(shown, cfg.name_chars), strict=True)
-    ):
+    for slot, (s, label) in enumerate(zip(shown, labels(shown, cfg.name_chars), strict=True)):
         color = cfg.colors[s.state]
         if s.state is AgentState.NEEDS_INPUT and not blink_on:
             color = dim(color, cfg.dim_factor)

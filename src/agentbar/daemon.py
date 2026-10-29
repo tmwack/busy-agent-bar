@@ -80,9 +80,7 @@ class Daemon:
             ],
         }
 
-    async def _handle(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
             line = await asyncio.wait_for(reader.readline(), timeout=1.0)
             msg = json.loads(line)
@@ -121,12 +119,7 @@ class Daemon:
             await self._sleep(timeout)
 
     async def _sleep(self, timeout: float) -> None:
-        waiters = {
-            asyncio.ensure_future(self._wake.wait()),
-            asyncio.ensure_future(self._stop.wait()),
-        }
-        _, pending = await asyncio.wait(
-            waiters, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
-        )
+        waiters = {asyncio.ensure_future(self._wake.wait()), asyncio.ensure_future(self._stop.wait())}
+        _, pending = await asyncio.wait(waiters, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
         for task in pending:
             task.cancel()

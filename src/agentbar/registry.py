@@ -64,20 +64,11 @@ class Registry:
 
         # Hooks for parallel tool calls can arrive slightly out of order;
         # never let an older state event overwrite a newer one.
-        if (
-            ev.kind is EventKind.STATE
-            and ev.state is not None
-            and ev.ts >= session.last_state_ts
-        ):
+        if ev.kind is EventKind.STATE and ev.state is not None and ev.ts >= session.last_state_ts:
             session.last_state_ts = ev.ts
             session.detail = ev.detail
             if ev.state != session.state:
-                log.info(
-                    "session %s %s -> %s",
-                    ev.session_id,
-                    session.state.name,
-                    ev.state.name,
-                )
+                log.info("session %s %s -> %s", ev.session_id, session.state.name, ev.state.name)
                 session.state = ev.state
                 session.state_since = ev.ts
                 changed = True

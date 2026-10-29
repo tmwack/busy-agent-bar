@@ -1,7 +1,4 @@
-"""Config: ~/.config/agentbar/config.toml (override with AGENTBAR_CONFIG).
-
-All keys are optional.
-"""
+"""Config: ~/.config/agentbar/config.toml (override with AGENTBAR_CONFIG). All keys optional."""
 
 from __future__ import annotations
 

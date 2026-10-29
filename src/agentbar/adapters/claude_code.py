@@ -40,13 +40,7 @@ def normalize(payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
         return None
 
     tool = payload.get("tool_name")
-    common = dict(
-        source=SOURCE,
-        session_id=str(session_id),
-        ts=ts,
-        cwd=payload.get("cwd"),
-        pid=pid,
-    )
+    common = dict(source=SOURCE, session_id=str(session_id), ts=ts, cwd=payload.get("cwd"), pid=pid)
 
     def state(s: AgentState, detail: str | None = None) -> AgentEvent:
         return AgentEvent(kind=EventKind.STATE, state=s, detail=detail, **common)

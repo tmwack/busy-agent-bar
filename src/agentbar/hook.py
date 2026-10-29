@@ -42,10 +42,7 @@ def parse_ps(stdout: str) -> dict[int, tuple[int, str]]:
     for line in stdout.splitlines():
         parts = line.split(None, 2)
         if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
-            table[int(parts[0])] = (
-                int(parts[1]),
-                os.path.basename(parts[2].strip()).lstrip("-"),
-            )
+            table[int(parts[0])] = (int(parts[1]), os.path.basename(parts[2].strip()).lstrip("-"))
     return table
 
 
