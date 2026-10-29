@@ -98,7 +98,7 @@ class Daemon:
             )
             if ev is not None and self.registry.apply(ev):
                 self._wake.set()
-        except (asyncio.TimeoutError, ValueError, TypeError, AttributeError) as exc:
+        except (TimeoutError, ValueError, TypeError, AttributeError) as exc:
             log.debug("dropped message: %s", exc)
         finally:
             writer.close()

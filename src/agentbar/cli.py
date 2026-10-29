@@ -47,14 +47,19 @@ def _status(_: argparse.Namespace) -> int:
         print(f"daemon not reachable at {socket_path()}: {exc}", file=sys.stderr)
         return 1
     status = json.loads(data)
-    print(
-        f"bar: {'unreachable' if not status['reachable'] else 'yielding to BUSY' if status['blocked'] else 'ok'}"
-    )
+    if not status["reachable"]:
+        bar = "unreachable"
+    elif status["blocked"]:
+        bar = "yielding to BUSY"
+    else:
+        bar = "ok"
+    print(f"bar: {bar}")
     now = time.time()
     for s in status["sessions"]:
         age = int(now - s["state_since"])
         print(
-            f"{s['state']:<12} {age:>5}s  {s['cwd'] or '-'}  ({s['source']} {s['session_id'][:8]} pid={s['pid']})"
+            f"{s['state']:<12} {age:>5}s  {s['cwd'] or '-'}  "
+            f"({s['source']} {s['session_id'][:8]} pid={s['pid']})"
         )
     if not status["sessions"]:
         print("no sessions")

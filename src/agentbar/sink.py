@@ -3,6 +3,7 @@ is on the display and sends only changes."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import time
@@ -84,10 +85,9 @@ class BusyBarSink:
                 if not self.blocked:
                     log.info("bar busy (409), hiding until it ends")
                 self.blocked = True
-                try:  # hide anything drawn before the session started
+                # Hide anything drawn before the session started.
+                with contextlib.suppress(BusyBarError):
                     await self.client.display_clear(application_name=app)
-                except BusyBarError:
-                    pass
             else:
                 log.warning("draw rejected: %s", exc)
         except BusyBarError as exc:

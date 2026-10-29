@@ -21,7 +21,8 @@ def region_x(cfg: LayoutConfig) -> int:
     width = cfg.max_tiles * cfg.tile_width + (cfg.max_tiles - 1) * cfg.gap
     if width > FRONT_WIDTH:
         raise ValueError(
-            f"{cfg.max_tiles} tiles x {cfg.tile_width}px does not fit in {FRONT_WIDTH}px"
+            f"{cfg.max_tiles} tiles x {cfg.tile_width}px "
+            f"does not fit in {FRONT_WIDTH}px"
         )
     if cfg.x is None:
         return FRONT_WIDTH - width
@@ -74,7 +75,9 @@ def render(
     shown = select(sessions, cfg)
     x0 = region_x(cfg)
     out: dict[str, dict] = {}
-    for slot, (s, label) in enumerate(zip(shown, labels(shown, cfg.name_chars))):
+    for slot, (s, label) in enumerate(
+        zip(shown, labels(shown, cfg.name_chars), strict=True)
+    ):
         color = cfg.colors[s.state]
         if s.state is AgentState.NEEDS_INPUT and not blink_on:
             color = dim(color, cfg.dim_factor)
