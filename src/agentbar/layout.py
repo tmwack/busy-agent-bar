@@ -45,7 +45,7 @@ def select(sessions: list[Session], cfg: LayoutConfig) -> list[Session]:
 def initials(name: str, n: int) -> str:
     """First letter of each word, lowercased, padded with "-" to n characters.
 
-    busy-agent-bar -> bab, mcpTenancy -> mt-, agentbar -> a--
+    With n=4: busy-agent-bar -> bab-, mcpTenancy -> mt--, agentbar -> a---
     """
     return "".join(w[0] for w in WORD.findall(name))[:n].lower().ljust(n, "-")
 

@@ -35,7 +35,7 @@ class LayoutConfig:
     tile_width: int = 18
     gap: int = 1
     max_tiles: int = 3
-    name_chars: int = 3  # label length: initials, padded with "-"
+    name_chars: int = 4  # label length: initials, padded with "-"; 4 fit 18 px in the small font
     font: str = "small"
     text_y: int = 1
     bar_height: int = 2
