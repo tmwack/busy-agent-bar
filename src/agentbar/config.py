@@ -46,7 +46,7 @@ class LayoutConfig:
 
 @dataclass
 class TimingConfig:
-    done_decay_s: float = 300  # DONE -> IDLE
+    done_decay_s: float = 3600  # DONE -> IDLE; an hour, so a finished session is still green after a meeting
     session_ttl_s: float = 7200  # expiry for sessions with no known PID
     blink_period_s: float = 1.0
     busy_retry_s: float = 5.0  # retry interval while yielding / bar unreachable

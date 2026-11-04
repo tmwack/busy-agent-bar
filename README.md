@@ -58,7 +58,7 @@ Sessions with the same label get a digit in place of the last character:
 | --- | --- | --- |
 | working | amber | |
 | needs input | red | blinks (bright/dim, 1 Hz) |
-| done | green | becomes idle after 5 min |
+| done | green | becomes idle after 1 hour |
 | idle | dark grey | |
 
 If there are more sessions than tiles, higher-priority states win a tile
@@ -98,7 +98,7 @@ done = "#00C850"
 idle = "#303030"
 
 [timing]
-done_decay_s = 300
+done_decay_s = 3600
 session_ttl_s = 7200        # only for sessions whose process couldn't be found
 blink_period_s = 1.0
 busy_retry_s = 5.0
