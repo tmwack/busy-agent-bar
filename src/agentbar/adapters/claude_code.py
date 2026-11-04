@@ -13,6 +13,9 @@ State mapping:
   Stop                                    -> DONE
   SessionEnd                              -> session removed
   anything else (PreCompact, SubagentStop) -> no change
+
+session_title (SessionStart and UserPromptSubmit, named sessions only) becomes
+the session's title, which the tile label prefers over the cwd.
 """
 
 from __future__ import annotations
@@ -40,7 +43,14 @@ def normalize(payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
         return None
 
     tool = payload.get("tool_name")
-    common = dict(source=SOURCE, session_id=str(session_id), ts=ts, cwd=payload.get("cwd"), pid=pid)
+    common = dict(
+        source=SOURCE,
+        session_id=str(session_id),
+        ts=ts,
+        cwd=payload.get("cwd"),
+        title=payload.get("session_title"),  # only set for named sessions (--name, /rename)
+        pid=pid,
+    )
 
     def state(s: AgentState, detail: str | None = None) -> AgentEvent:
         return AgentEvent(kind=EventKind.STATE, state=s, detail=detail, **common)

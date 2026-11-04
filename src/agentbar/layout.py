@@ -1,13 +1,15 @@
 """Pure rendering: sessions -> BUSY Bar draw elements (dicts keyed by element id).
 
 Region: max_tiles tiles side by side on the 72x16 front display; the rest of
-the display is left to other applications. Each tile is the project name
-(text, state colour) above a thin bar in the state colour.
+the display is left to other applications. Each tile is a short label
+(initials of the session name, state colour) above a thin bar in the state
+colour.
 """
 
 from __future__ import annotations
 
 import os
+import re
 from collections import Counter
 
 from .config import LayoutConfig
@@ -15,6 +17,10 @@ from .model import AgentState, Session
 
 FRONT_WIDTH = 72
 FRONT_HEIGHT = 16
+
+# Words in kebab-case, snake_case, spaced, camelCase and PascalCase names.
+# An acronym ends where a capitalised word starts: HTTPServer -> HTTP, Server.
+WORD = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z0-9]+|[A-Z0-9]+")
 
 
 def region_x(cfg: LayoutConfig) -> int:
@@ -36,12 +42,20 @@ def select(sessions: list[Session], cfg: LayoutConfig) -> list[Session]:
     return sorted(pool, key=lambda s: s.first_seen)
 
 
+def initials(name: str, n: int) -> str:
+    """First letter of each word, lowercased, padded with "-" to n characters.
+
+    busy-agent-bar -> bab, mcpTenancy -> mt-, agentbar -> a--
+    """
+    return "".join(w[0] for w in WORD.findall(name))[:n].lower().ljust(n, "-")
+
+
 def labels(sessions: list[Session], n: int) -> list[str]:
-    """Truncated project names; duplicates get a 1-based suffix digit."""
+    """Initials of the session title, else the cwd basename; duplicates get a 1-based suffix digit."""
     bases = []
     for s in sessions:
-        name = os.path.basename((s.cwd or "").rstrip("/")) or s.session_id
-        bases.append(name[:n])
+        name = s.title or os.path.basename((s.cwd or "").rstrip("/")) or s.session_id
+        bases.append(initials(name, n))
     counts = Counter(bases)
     seen: Counter[str] = Counter()
     out = []

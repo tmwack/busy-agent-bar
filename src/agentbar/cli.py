@@ -47,7 +47,10 @@ def _status(_: argparse.Namespace) -> int:
     now = time.time()
     for s in status["sessions"]:
         age = int(now - s["state_since"])
-        print(f"{s['state']:<12} {age:>5}s  {s['cwd'] or '-'}  ({s['source']} {s['session_id'][:8]} pid={s['pid']})")
+        where = s["cwd"] or "-"
+        if s.get("title"):
+            where = f'"{s["title"]}" {where}'
+        print(f"{s['state']:<12} {age:>5}s  {where}  ({s['source']} {s['session_id'][:8]} pid={s['pid']})")
     if not status["sessions"]:
         print("no sessions")
     return 0

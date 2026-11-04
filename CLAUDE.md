@@ -12,9 +12,13 @@ v1 ships only a Claude Code adapter.
   still WIP). Not a bsbctl plugin (bsbctl is Go-only).
 - **Layout:** a region of side-by-side session tiles on the front display.
   The rest of the display stays free for other apps.
-- **Sessions:** usually one at a time; tiles are small so a couple fit.
-  Rotating through sessions is deferred until two tiles aren't enough.
-- **Tile label:** project name (cwd basename), truncated to about 4 chars.
+- **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
+  16 px for other apps. Rotating through sessions is deferred.
+- **Tile label:** 3 characters: initials of the session title (set with
+  `--name` or `/rename`), else of the cwd basename. Words split on `-`, `_`,
+  spaces and case changes; missing characters are `-`. `busy-agent-bar` →
+  `bab`, `istari-rfc-equivalency` → `ire`, `mcpTenancy` → `mt-`, `agentbar` →
+  `a--`.
 - **Needs input:** shown by colour plus blinking.
 - **BUSY timer active:** yield, i.e. hide the tiles until it ends.
 - **Platform:** macOS. The bar is connected over USB.
@@ -31,7 +35,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/adapters/` | Per-harness `normalize(payload, ts, pid) -> AgentEvent`. Register new ones in `__init__.py`. |
 | `src/agentbar/model.py` | `AgentState` (its int value is tile priority), `AgentEvent`, `Session`. |
 | `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). |
-| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. Element ids are `10*(slot+1)` (bar) and `+1` (text). |
+| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `10*(slot+1)` (bar) and `+1` (text). |
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
@@ -55,6 +59,10 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 
 PIDs are only resolved on `SessionStart` and `UserPromptSubmit`, so the `ps`
 cost isn't paid on every tool call.
+
+`session_title` also arrives only on `SessionStart` and `UserPromptSubmit`,
+and only for sessions with a custom name. The registry keeps the last title it
+saw, so a `/rename` shows on the tile after the next prompt.
 
 ## Device facts (from the official `busylib` ≥2.6)
 
@@ -91,7 +99,7 @@ cost isn't paid on every tool call.
 ## Status
 
 - Never run on macOS or against a real bar.
-- Verified in a Linux container: 22 unit tests, and an end-to-end dry-run
+- Verified in a Linux container: 34 unit tests, and an end-to-end dry-run
   (real hook payloads → daemon → `agentbar status`).
 - Rendered elements validate against `busylib.types.DisplayElements`.
 - Hook forwarder cost: about 31 ms per call in the container. Each tool call
@@ -101,7 +109,7 @@ cost isn't paid on every tool call.
 
 1. Re-posting an element with an existing `id` replaces it. Look for
    ghosting or duplicates when a tile changes state.
-2. The `small` font fits 4 chars in 18 px; otherwise tune `font`,
+2. The `small` font fits 3 chars in 18 px; otherwise tune `font`,
    `tile_width` or `name_chars`.
 3. Other apps' drawings stay visible next to the tiles.
 4. Tiles hide during a BUSY session (409 path) and come back afterwards.
@@ -120,6 +128,10 @@ cost isn't paid on every tool call.
   payload plus a source line.
 - **Session rotation** when sessions outnumber tiles (currently the
   highest-priority states win).
+- **Tile placement:** tiles fill the region from the left, so a single
+  session sits at x=16–33 with two empty slots to its right.
+- **Label collisions:** different names with the same initials are told apart
+  only by the duplicate digit (`ba1`, `ba2`).
 - **Back OLED** for detail: full project name, current tool.
 - **`led_notification_color`** for NEEDS_INPUT.
 - **More adapters:** Codex, others.

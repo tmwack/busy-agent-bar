@@ -71,6 +71,7 @@ class Daemon:
                     "source": s.source,
                     "session_id": s.session_id,
                     "cwd": s.cwd,
+                    "title": s.title,
                     "state": s.state.name,
                     "state_since": s.state_since,
                     "pid": s.pid,
