@@ -59,6 +59,9 @@ class Registry:
         if ev.cwd and ev.cwd != session.cwd:
             session.cwd = ev.cwd
             changed = True
+        if ev.title and ev.title != session.title:
+            session.title = ev.title
+            changed = True
         if ev.pid:
             session.pid = ev.pid
 

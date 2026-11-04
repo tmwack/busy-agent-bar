@@ -24,6 +24,11 @@ def test_non_state_events_touch():
     assert ev("SubagentStop").kind is EventKind.TOUCH
 
 
+def test_session_title_passed_through():
+    assert ev("UserPromptSubmit", session_title="Fix auth bug").title == "Fix auth bug"
+    assert ev("Stop").title is None
+
+
 def test_legacy_notification_without_type():
     assert ev("Notification", message="Claude needs your permission to use Bash").state is AgentState.NEEDS_INPUT
 

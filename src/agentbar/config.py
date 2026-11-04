@@ -34,8 +34,8 @@ class LayoutConfig:
     x: int | None = None  # left edge of the region; None = right-aligned
     tile_width: int = 18
     gap: int = 1
-    max_tiles: int = 2
-    name_chars: int = 4
+    max_tiles: int = 3
+    name_chars: int = 3  # label length: initials, padded with "-"
     font: str = "small"
     text_y: int = 1
     bar_height: int = 2

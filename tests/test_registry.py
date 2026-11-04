@@ -15,6 +15,13 @@ def test_lifecycle_and_end():
     assert r.sessions() == []
 
 
+def test_title_kept_when_later_events_omit_it():
+    r = Registry(300, 7200)
+    r.apply(AgentEvent("cc", "s1", EventKind.STATE, 1, state=AgentState.WORKING, title="Fix auth bug"))
+    r.apply(st(AgentState.DONE, 2))
+    assert r.sessions()[0].title == "Fix auth bug"
+
+
 def test_out_of_order_state_ignored():
     r = Registry(300, 7200)
     r.apply(st(AgentState.NEEDS_INPUT, 10))

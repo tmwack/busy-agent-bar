@@ -30,6 +30,7 @@ class AgentEvent:
     ts: float  # unix seconds, stamped by the forwarder
     state: AgentState | None = None
     cwd: str | None = None
+    title: str | None = None  # user-set session name, if the harness reports one
     pid: int | None = None  # harness process, for liveness checks
     detail: str | None = None  # e.g. tool name
 
@@ -44,5 +45,6 @@ class Session:
     state_since: float = 0.0  # when the current state was entered
     last_state_ts: float = 0.0  # ts of the newest applied STATE event (ordering guard)
     cwd: str | None = None
+    title: str | None = None
     pid: int | None = None
     detail: str | None = None
