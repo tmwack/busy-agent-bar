@@ -86,8 +86,10 @@ def render(sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True) ->
     out: dict[str, dict] = {}
     for slot, (s, label) in enumerate(zip(shown, labels(shown, cfg.name_chars), strict=True)):
         color = cfg.colors[s.state]
+        text_color = cfg.text_colors.get(s.state, color)
         if s.state is AgentState.NEEDS_INPUT and not blink_on:
             color = dim(color, cfg.dim_factor)
+            text_color = dim(text_color, cfg.dim_factor)
         x = x0 + slot * (cfg.tile_width + cfg.gap)
         bar_id, text_id = element_ids(slot)
         out[bar_id] = {
@@ -111,7 +113,7 @@ def render(sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True) ->
             "width": cfg.tile_width,
             "text": label,
             "font": cfg.font,
-            "color": color,
+            "color": text_color,
         }
     return out
 

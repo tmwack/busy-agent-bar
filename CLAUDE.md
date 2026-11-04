@@ -22,6 +22,8 @@ v1 ships only a Claude Code adapter.
   a label with two or more `m`/`w` is clipped by 1 px or more, which is
   accepted.
 - **Needs input:** shown by colour plus blinking.
+- **Idle:** grey label (`#808080`) over a dark bar (`#303030`), so idle tiles
+  read as parked but the label stays legible.
 - **BUSY timer active:** yield, i.e. hide the tiles until it ends.
 - **Platform:** macOS. The bar is connected over USB.
 
@@ -105,6 +107,13 @@ saw, so a `/rename` shows on the tile after the next prompt.
   (`applications/services/canvas/canvas_widgets.c`); with `scroll_rate` it
   scrolls.
 
+**LED output** (from the firmware source)
+- The front display raises each colour channel to the power 2.8 at full
+  brightness (2.5 at the lowest) before driving the LEDs
+  (`applications/services/front_display/front_display_driver.c`). Dark values
+  almost vanish: `#303030` drives about 1% of full output, `#808080` about
+  14%.
+
 **Library quirks**
 - `busylib` logs every request at INFO. The CLI turns that down unless `-v`
   is passed.
@@ -112,7 +121,7 @@ saw, so a `/rename` shows on the tile after the next prompt.
 ## Status
 
 - Never run on macOS or against a real bar.
-- Verified in a Linux container: 35 unit tests, and an end-to-end dry-run
+- Verified in a Linux container: 38 unit tests, and an end-to-end dry-run
   (real hook payloads → daemon → `agentbar status`).
 - Rendered elements validate against `busylib.types.DisplayElements`.
 - Hook forwarder cost: about 31 ms per call in the container. Each tool call

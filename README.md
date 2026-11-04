@@ -63,7 +63,7 @@ or more `m` or `w` is a pixel or two wider, and the bar clips it at the tile edg
 | working | amber | |
 | needs input | red | blinks (bright/dim, 1 Hz) |
 | done | green | becomes idle after 1 hour |
-| idle | dark grey | |
+| idle | grey label, dark grey bar | |
 
 If there are more sessions than tiles, higher-priority states win a tile
 (needs input > working > done > idle). Tiles stay in first-seen order.
@@ -100,6 +100,9 @@ working = "#FFA000"
 needs_input = "#FF1E1E"
 done = "#00C850"
 idle = "#303030"
+
+[layout.text_colors]        # label colour, where it differs from the bar
+idle = "#808080"
 
 [timing]
 done_decay_s = 3600
