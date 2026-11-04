@@ -165,3 +165,5 @@ Logs: `~/Library/Logs/agentbar.log`.
   `pyproject.toml`).
 - No merge commits: merge PRs with squash or rebase, and update branches by
   rebasing onto `main`, never by merging `main` in.
+- Tyler authenticates git with SSH. Use `git@github.com:owner/repo.git` URLs
+  in instructions and docs, not HTTPS.
