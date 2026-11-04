@@ -75,6 +75,13 @@ def test_render_positions_and_blink():
     assert blinking(ss, cfg)
 
 
+def test_idle_label_brighter_than_bar():
+    cfg = LayoutConfig()
+    out = render([s("a", "/a", AgentState.IDLE)], cfg)
+    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.IDLE]]
+    assert out["11"]["color"] == cfg.text_colors[AgentState.IDLE] != cfg.colors[AgentState.IDLE]
+
+
 def test_hide_idle():
     ss = [s("a", "/a", AgentState.IDLE)]
     assert render(ss, LayoutConfig(show_idle=False)) == {}

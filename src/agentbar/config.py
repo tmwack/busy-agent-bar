@@ -19,6 +19,13 @@ DEFAULT_COLORS = {
     AgentState.NEEDS_INPUT: "#FF1E1E",
 }
 
+# Label colours that differ from the bar colour. The front display applies gamma 2.8,
+# so #303030 drives about 1% of full LED output and an idle label in it is unreadable;
+# #808080 drives about 14%.
+DEFAULT_TEXT_COLORS = {
+    AgentState.IDLE: "#808080",
+}
+
 
 @dataclass
 class BusyBarConfig:
@@ -42,6 +49,7 @@ class LayoutConfig:
     show_idle: bool = True
     dim_factor: float = 0.2  # blink "off" brightness for NEEDS_INPUT
     colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_COLORS))
+    text_colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_TEXT_COLORS))
 
 
 @dataclass
@@ -65,11 +73,11 @@ def _apply(target: object, table: dict, section: str) -> None:
     for key, value in table.items():
         if key not in known:
             raise ValueError(f"unknown config key [{section}].{key}")
-        if key == "colors":
+        if key in ("colors", "text_colors"):
             for name, color in value.items():
                 if not HEX_COLOR.match(color):
-                    raise ValueError(f"[{section}.colors].{name} must be #RRGGBB")
-                target.colors[AgentState[name.upper()]] = color  # type: ignore[attr-defined]
+                    raise ValueError(f"[{section}.{key}].{name} must be #RRGGBB")
+                getattr(target, key)[AgentState[name.upper()]] = color
             continue
         setattr(target, key, value)
 
