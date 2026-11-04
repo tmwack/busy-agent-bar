@@ -36,7 +36,7 @@ agentbar run --dry-run -v
 The front display gets a fixed region of `max_tiles` tiles, right-aligned by
 default. The rest of the display is left to other applications. Each tile shows:
 
-- a 3-character label in the state colour;
+- a 4-character label in the state colour;
 - a 2px bar in the state colour underneath.
 
 The label is the initials of the session's name, set with `claude --name` or
@@ -46,13 +46,17 @@ are filled with `-`:
 
 | Name | Label |
 | --- | --- |
-| `busy-agent-bar` | `bab` |
-| `istari-rfc-equivalency` | `ire` |
-| `mcpTenancy` | `mt-` |
-| `agentbar` | `a--` |
+| `busy-agent-bar` | `bab-` |
+| `istari-rfc-equivalency` | `ire-` |
+| `mcpTenancy` | `mt--` |
+| `agentbar` | `a---` |
+| `one-two-three-four-five` | `ottf` |
 
 Sessions with the same label get a digit in place of the last character:
-`ba1`, `ba2`.
+`bab1`, `bab2`.
+
+Four characters fit an 18 px tile in the bar's `small` font. A label with two
+or more `m` or `w` is a pixel or two wider, and the bar clips it at the tile edge.
 
 | State | Colour | Behaviour |
 | --- | --- | --- |
@@ -84,7 +88,7 @@ priority = 50
 tile_width = 18
 gap = 1
 max_tiles = 3
-name_chars = 3              # label length
+name_chars = 4              # label length
 font = "small"              # tiny, small, normal, condensed, bold, ...
 text_y = 1
 bar_height = 2
@@ -132,11 +136,9 @@ These are assumptions the code makes that couldn't be checked without a bar:
 
 1. Re-posting an element with an existing `id` replaces it rather than adding
    a duplicate. Watch for flicker or ghosting when a tile changes state.
-2. The `small` font fits 3 characters in 18 px. If not, change `font`,
-   `tile_width` or `name_chars`.
-3. Elements from other applications stay visible next to the tiles.
-4. During a BUSY session, draws fail with 409 and the tiles reappear afterwards.
-5. If `Stop` doesn't fire when you interrupt Claude with Esc, the tile stays
+2. Elements from other applications stay visible next to the tiles.
+3. During a BUSY session, draws fail with 409 and the tiles reappear afterwards.
+4. If `Stop` doesn't fire when you interrupt Claude with Esc, the tile stays
    "working" until the next prompt.
 
 ## Adding a harness

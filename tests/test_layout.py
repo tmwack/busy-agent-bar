@@ -37,6 +37,16 @@ def test_initials(name, label):
     assert initials(name, 3) == label
 
 
+def test_initials_default_length():
+    n = LayoutConfig().name_chars
+    assert [initials(x, n) for x in ("busy-agent-bar", "mcpTenancy", "agentbar", "a-b-c-d-e")] == [
+        "bab-",
+        "mt--",
+        "a---",
+        "abcd",
+    ]
+
+
 def test_labels_prefer_title_and_dedupe():
     named = s("a", "/w/agentbar")
     named.title = "Fix auth bug"
@@ -59,7 +69,7 @@ def test_render_positions_and_blink():
     on = render(ss, cfg, blink_on=True)
     off = render(ss, cfg, blink_on=False)
     assert on["11"]["x"] == 16 and on["21"]["x"] == 35
-    assert on["11"]["text"] == "a--" and on["21"]["color"] == "#FF1E1E"
+    assert on["11"]["text"] == "a---" and on["21"]["color"] == "#FF1E1E"
     assert off["21"]["color"] == dim("#FF1E1E", cfg.dim_factor)
     assert off["11"] == on["11"]  # only the NEEDS_INPUT tile blinks
     assert blinking(ss, cfg)

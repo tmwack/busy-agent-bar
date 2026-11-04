@@ -14,11 +14,13 @@ v1 ships only a Claude Code adapter.
   The rest of the display stays free for other apps.
 - **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
   16 px for other apps. Rotating through sessions is deferred.
-- **Tile label:** 3 characters: initials of the session title (set with
+- **Tile label:** 4 characters: initials of the session title (set with
   `--name` or `/rename`), else of the cwd basename. Words split on `-`, `_`,
   spaces and case changes; missing characters are `-`. `busy-agent-bar` →
-  `bab`, `istari-rfc-equivalency` → `ire`, `mcpTenancy` → `mt-`, `agentbar` →
-  `a--`.
+  `bab-`, `istari-rfc-equivalency` → `ire-`, `mcpTenancy` → `mt--`,
+  `agentbar` → `a---`. Four characters fit an 18 px tile in the `small` font;
+  a label with two or more `m`/`w` is clipped by 1 px or more, which is
+  accepted.
 - **Needs input:** shown by colour plus blinking.
 - **BUSY timer active:** yield, i.e. hide the tiles until it ends.
 - **Platform:** macOS. The bar is connected over USB.
@@ -92,6 +94,17 @@ saw, so a `/rename` shows on the tile after the next prompt.
 - Timer state: `GET /api/busy/snapshot` returns the last applied snapshot,
   not live state. `busylib.features.timer_state()` advances it to now.
 
+**Fonts** (from the firmware source, `busy-app/busybar-firmware`)
+- `small` is `busy_regular_5`, compiled into the firmware
+  (`lib/lvgl_addons/fonts/lv_font_busy_regular_5.c`). Line height 9, baseline
+  2: capitals sit on rows 2–6 below the text element's `y`, descenders on
+  row 7.
+- Advance widths: most lowercase letters and digits 4 px (3 px glyph + 1 px
+  gap); `f j r t 1 -` 3 px; `i l` 2 px; `m w` 6 px.
+- A text element with a `width` and no `scroll_rate` is clipped at that width
+  (`applications/services/canvas/canvas_widgets.c`); with `scroll_rate` it
+  scrolls.
+
 **Library quirks**
 - `busylib` logs every request at INFO. The CLI turns that down unless `-v`
   is passed.
@@ -99,7 +112,7 @@ saw, so a `/rename` shows on the tile after the next prompt.
 ## Status
 
 - Never run on macOS or against a real bar.
-- Verified in a Linux container: 34 unit tests, and an end-to-end dry-run
+- Verified in a Linux container: 35 unit tests, and an end-to-end dry-run
   (real hook payloads → daemon → `agentbar status`).
 - Rendered elements validate against `busylib.types.DisplayElements`.
 - Hook forwarder cost: about 31 ms per call in the container. Each tool call
@@ -109,13 +122,11 @@ saw, so a `/rename` shows on the tile after the next prompt.
 
 1. Re-posting an element with an existing `id` replaces it. Look for
    ghosting or duplicates when a tile changes state.
-2. The `small` font fits 3 chars in 18 px; otherwise tune `font`,
-   `tile_width` or `name_chars`.
-3. Other apps' drawings stay visible next to the tiles.
-4. Tiles hide during a BUSY session (409 path) and come back afterwards.
-5. Whether `Stop` fires on an Esc interrupt. If not, the tile stays WORKING
+2. Other apps' drawings stay visible next to the tiles.
+3. Tiles hide during a BUSY session (409 path) and come back afterwards.
+4. Whether `Stop` fires on an Esc interrupt. If not, the tile stays WORKING
    until the next prompt.
-6. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
+5. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
    `pid` column in `agentbar status`.
 
 ## Known gaps / next ideas
@@ -131,7 +142,7 @@ saw, so a `/rename` shows on the tile after the next prompt.
 - **Tile placement:** tiles fill the region from the left, so a single
   session sits at x=16–33 with two empty slots to its right.
 - **Label collisions:** different names with the same initials are told apart
-  only by the duplicate digit (`ba1`, `ba2`).
+  only by the duplicate digit (`bab1`, `bab2`).
 - **Back OLED** for detail: full project name, current tool.
 - **`led_notification_color`** for NEEDS_INPUT.
 - **More adapters:** Codex, others.
