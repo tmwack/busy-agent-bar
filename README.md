@@ -42,9 +42,9 @@ default. The rest of the display is left to other applications. Each tile shows:
 - a 2px bar in the session's state colour underneath, touching the squares.
 
 The label takes the most active state of the session and its subagents. A
-session that is done while a background agent works shows an amber label and
+session that is done while a background agent works shows a cyan label and
 square over a green bar. A subagent at a permission prompt turns its square
-and the label red and blinking, whatever the session itself is doing.
+and the label amber and blinking, whatever the session itself is doing.
 
 The label is the initials of the session's name, set with `claude --name` or
 `/rename`. Unnamed sessions use the project folder (cwd basename) instead.
@@ -71,10 +71,13 @@ leaving one blank row above the squares instead of three.
 
 | State | Colour | Behaviour |
 | --- | --- | --- |
-| working | amber | |
-| needs input | red | blinks (bright/dim, 1 Hz) |
+| working | cyan | the bar shimmers (its gradient flips once a second) |
+| needs input | amber | blinks (bright/dim, 1 Hz) |
 | done | green | becomes idle after 1 hour |
-| idle | grey label, dark grey bar | |
+| idle | sage label, dim sage bar | |
+
+Red is left out on purpose: the bar's own BUSY focus timer is red. See
+`CLAUDE.md` for the reasons behind each colour.
 
 If there are more sessions than tiles, higher-priority states win a tile
 (needs input > working > done > idle), counting each session's subagents.
@@ -107,21 +110,24 @@ bar_height = 2
 agent_size = 2              # subagent squares, on top of the bar
 agent_gap = 1
 show_idle = true
-dim_factor = 0.2
+dim_factor = 0.2            # blink "off" brightness for needs input
+shimmer = true              # working bars shimmer
+shimmer_factor = 0.6        # dim end of the shimmer gradient
 
 [layout.colors]
-working = "#FFA000"
-needs_input = "#FF1E1E"
+working = "#00B0FF"
+needs_input = "#FFC000"
 done = "#00C850"
-idle = "#303030"
+idle = "#406048"
 
 [layout.text_colors]        # label colour, where it differs from the bar
-idle = "#808080"
+idle = "#609870"
 
 [timing]
 done_decay_s = 3600
 session_ttl_s = 7200        # only for sessions whose process couldn't be found
 blink_period_s = 1.0
+shimmer_period_s = 2.0      # the gradient flips every half period
 busy_retry_s = 5.0
 refresh_s = 60.0
 ```

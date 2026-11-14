@@ -115,6 +115,8 @@ class LogSink:
             tile = tiles.setdefault(int(i) // 10, {"agents": []})
             if e["type"] == "text":
                 tile.update(text=e["text"], color=e["color"], x=e["x"])
+            elif int(i) % 10 == 0:
+                tile["bar"] = e["fill_colors"]
             elif int(i) % 10 >= 2:
                 tile["agents"].append(e["fill_colors"][0])
         log.info("render %s", json.dumps(list(tiles.values())))

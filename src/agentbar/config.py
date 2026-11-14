@@ -12,18 +12,21 @@ from .paths import config_path
 
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
+# Values are what is sent; the front display applies gamma 2.8, so they land darker and
+# more saturated (#FFC000 shows as about #FFB300). Amber, not red, for needs input: the
+# bar's own BUSY focus timer is red. Needs input is the brightest state, working (cyan,
+# shimmering) is the calm steady state, and idle is a faded done.
 DEFAULT_COLORS = {
-    AgentState.IDLE: "#303030",
+    AgentState.IDLE: "#406048",
     AgentState.DONE: "#00C850",
-    AgentState.WORKING: "#FFA000",
-    AgentState.NEEDS_INPUT: "#FF1E1E",
+    AgentState.WORKING: "#00B0FF",
+    AgentState.NEEDS_INPUT: "#FFC000",
 }
 
-# Label colours that differ from the bar colour. The front display applies gamma 2.8,
-# so #303030 drives about 1% of full LED output and an idle label in it is unreadable;
-# #808080 drives about 14%.
+# Label colours that differ from the bar colour. The idle bar (#406048) drives about 5%
+# luminance, too dim for a readable label; #609870 drives about 19%, half of done green.
 DEFAULT_TEXT_COLORS = {
-    AgentState.IDLE: "#808080",
+    AgentState.IDLE: "#609870",
 }
 
 
@@ -50,6 +53,8 @@ class LayoutConfig:
     agent_gap: int = 1
     show_idle: bool = True
     dim_factor: float = 0.2  # blink "off" brightness for NEEDS_INPUT
+    shimmer: bool = True  # WORKING bars flip a two-colour gradient
+    shimmer_factor: float = 0.6  # dim end of the shimmer gradient (about 24% of the light)
     colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_COLORS))
     text_colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_TEXT_COLORS))
 
@@ -59,6 +64,7 @@ class TimingConfig:
     done_decay_s: float = 3600  # DONE -> IDLE; an hour, so a finished session is still green after a meeting
     session_ttl_s: float = 7200  # expiry for sessions with no known PID
     blink_period_s: float = 1.0
+    shimmer_period_s: float = 2.0  # the shimmer gradient flips every half period
     busy_retry_s: float = 5.0  # retry interval while yielding / bar unreachable
     refresh_s: float = 60.0  # periodic full redraw to self-heal
 

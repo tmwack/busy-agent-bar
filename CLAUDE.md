@@ -16,7 +16,7 @@ v1 ships only a Claude Code adapter.
   its session's bar (up to 6 per tile), coloured by that agent's state. The
   bar keeps the main session's state. The label takes the most active state
   of the session and its agents, so a done session with a working background
-  agent has an amber label over a green bar. A square disappears on
+  agent has a cyan label over a green bar. A square disappears on
   `SubagentStop`.
 - **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
   16 px for other apps. Rotating through sessions is deferred.
@@ -30,9 +30,45 @@ v1 ships only a Claude Code adapter.
   `bab-` fills the 18 px exactly. Four full-width letters (no `- i j l r`),
   or a duplicate digit (`bab1`), are clipped by 1 px, and each `m v w x` adds
   a pixel; also accepted.
-- **Needs input:** shown by colour plus blinking.
-- **Idle:** grey label (`#808080`) over a dark bar (`#303030`), so idle tiles
-  read as parked but the label stays legible.
+- **Palette** (sent value → how it shows on the LEDs after gamma 2.8 →
+  luminance):
+
+  | State | Sent | Shows as | Luminance |
+  | --- | --- | --- | --- |
+  | needs input | amber `#FFC000` | `#FFB300` | 0.536 |
+  | working | cyan `#00B0FF` | `#00A1FF` | 0.325 |
+  | done | green `#00C850` | `#00BD38` | 0.365 |
+  | idle label | sage `#609870` | `#488559` | 0.189 |
+  | idle bar | dim sage `#406048` | `#28482F` | 0.053 |
+
+  Reasons, chosen with Tyler (sources read 2026-11-13):
+  - **No red.** The firmware already uses red for its own BUSY focus timer
+    and status lights
+    ([`busy_presets.c`](https://raw.githubusercontent.com/busy-app/busybar-firmware/HEAD/applications/main/busy/busy_presets.c),
+    [`busy_timer_status_lights.c`](https://raw.githubusercontent.com/busy-app/busybar-firmware/HEAD/applications/services/busy_timer/busy_timer_status_lights.c)),
+    and presence lights use red for "do not disturb"
+    ([Teams](https://learn.microsoft.com/en-us/microsoftteams/presence-admins),
+    page dated 2026-07-16).
+  - **Prior art.** Amber for waiting, cyan for working and green for done
+    follow other agent-status tools, e.g.
+    [bsbctl](https://github.com/lxdb/bsbctl) and
+    [busybar-ai-progress](https://github.com/alexsuslin/busybar-ai-progress).
+  - **Brightness order.** Needs input is the brightest state; the old red
+    was the dimmest.
+  - **Idle is a faded done:** paler and about half as bright, so a parked
+    tile never outshines a finished one.
+  - **Colour blindness.** The old red/orange/green set is the hardest one
+    for red-green colour blindness
+    ([Okabe & Ito](https://jfly.uni-koeln.de/color/), 2002, revised 2008).
+    Each state now also has a non-colour cue:
+- **Needs input:** amber plus blinking.
+- **Working:** cyan with a shimmering bar. The bar is a two-colour
+  horizontal gradient (`gradient_h`) whose direction flips every
+  `shimmer_period_s / 2`, about one extra draw a second. Only the session's
+  own bar shimmers; labels and agent squares stay solid.
+- **Done:** stays still.
+- **Idle:** sage label over a dim sage bar, so idle tiles read as parked
+  but the label stays legible.
 - **BUSY timer active:** yield, i.e. hide the tiles until it ends.
 - **Platform:** macOS. The bar is connected over USB.
 
@@ -50,7 +86,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). Events with an `agent_id` change that agent only, never the session's state. |
 | `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `10*(slot+1)` (bar), `+1` (text) and `+2`… (agent squares). |
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
-| `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking). Full redraw every `refresh_s`. |
+| `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz, which also flips the shimmer; 2 Hz while blinking). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
 | `src/agentbar/config.py` | Loads `~/.config/agentbar/config.toml` (all keys optional). Env overrides: `AGENTBAR_CONFIG`, `AGENTBAR_SOCKET`. |
 
@@ -142,11 +178,11 @@ saw, so a `/rename` shows on the tile after the next prompt.
   brightness (2.5 at the lowest) before driving the LEDs
   (`applications/services/front_display/front_display_driver.c`). Dark values
   almost vanish: `#303030` drives about 1% of full output, `#808080` about
-  14%.
+  14%, the idle sage label `#609870` about 19% luminance.
 
 **Library quirks**
-- `busylib` logs every request at INFO. The CLI turns that down unless `-v`
-  is passed.
+- `busylib`, and its HTTP client's `httpx2` logger, each log every request
+  at INFO. The CLI turns both (and `httpx`) down unless `-v` is passed.
 
 ## Status
 
@@ -169,6 +205,12 @@ saw, so a `/rename` shows on the tile after the next prompt.
    and internal agents don't fire `SubagentStart` (no stray squares).
 6. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
    `pid` column in `agentbar status`.
+7. How the firmware draws `gradient_h` on the 2 px bar, given gamma 2.8:
+   the shimmer should read as light moving, not a jump.
+8. Whether a cyan 2×2 agent square is visible, and whether the shimmer flip
+   ghosts or flickers.
+9. Whether an idle sage tile is clearly distinct from a done tile next to
+   it.
 
 ## Known gaps / next ideas
 

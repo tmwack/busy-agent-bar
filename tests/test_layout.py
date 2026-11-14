@@ -2,7 +2,18 @@ import pytest
 from busylib.types import DisplayElements
 
 from agentbar.config import LayoutConfig
-from agentbar.layout import blinking, dim, initials, labels, max_agents, region_x, render, select, shown_agents
+from agentbar.layout import (
+    blinking,
+    dim,
+    initials,
+    labels,
+    max_agents,
+    region_x,
+    render,
+    select,
+    shimmering,
+    shown_agents,
+)
 from agentbar.model import Agent, AgentState, Session
 
 
@@ -70,8 +81,9 @@ def test_render_positions_and_blink():
     on = render(ss, cfg, blink_on=True)
     off = render(ss, cfg, blink_on=False)
     assert on["11"]["x"] == 16 and on["21"]["x"] == 35
-    assert on["11"]["text"] == "a---" and on["21"]["color"] == "#FF1E1E"
-    assert off["21"]["color"] == dim("#FF1E1E", cfg.dim_factor)
+    needs = cfg.colors[AgentState.NEEDS_INPUT]
+    assert on["11"]["text"] == "a---" and on["21"]["color"] == needs
+    assert off["21"]["color"] == dim(needs, cfg.dim_factor)
     assert off["11"] == on["11"]  # only the NEEDS_INPUT tile blinks
     assert blinking(ss, cfg)
 
@@ -111,7 +123,7 @@ def test_bar_is_session_label_is_most_active():
     assert out["10"]["fill_colors"] == [cfg.colors[AgentState.DONE]]
     assert out["11"]["color"] == cfg.colors[AgentState.WORKING]
     out = render([with_agents(s("a", "/a", AgentState.WORKING), AgentState.NEEDS_INPUT)], cfg)
-    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.WORKING]]
+    assert out["10"]["fill_colors"][0] == cfg.colors[AgentState.WORKING]  # shimmer, bright end first
     assert out["11"]["color"] == cfg.colors[AgentState.NEEDS_INPUT]
     assert out["12"]["fill_colors"] == [cfg.colors[AgentState.NEEDS_INPUT]]
 
@@ -145,4 +157,40 @@ def test_overflow_ranks_by_most_active_state():
 
 def test_agent_squares_validate_against_busylib():
     elements = render([with_agents(s("a", "/a", AgentState.DONE), AgentState.WORKING)], LayoutConfig())
+    DisplayElements.model_validate({"application_name": "agentbar", "elements": list(elements.values())})
+
+
+def test_working_bar_shimmers():
+    cfg = LayoutConfig()
+    working = cfg.colors[AgentState.WORKING]
+    faded = dim(working, cfg.shimmer_factor)
+    ss = [s("a", "/a", AgentState.WORKING)]
+    a, b = render(ss, cfg, shimmer_phase=0)["10"], render(ss, cfg, shimmer_phase=1)["10"]
+    assert a["fill"] == b["fill"] == "gradient_h"
+    assert a["fill_colors"] == [working, faded] and b["fill_colors"] == [faded, working]
+    assert shimmering(ss, cfg)
+
+
+def test_only_working_bars_shimmer():
+    cfg = LayoutConfig()
+    ss = [
+        s("a", "/a", AgentState.DONE, 1),
+        s("b", "/b", AgentState.NEEDS_INPUT, 2),
+        with_agents(s("c", "/c", AgentState.IDLE, 3), AgentState.WORKING),
+    ]
+    out = render(ss, cfg, shimmer_phase=1)
+    assert [out[i]["fill"] for i in ("10", "20", "30")] == ["solid"] * 3
+    assert out["32"]["fill"] == "solid"  # agent squares never shimmer
+    assert not shimmering(ss, cfg)
+
+
+def test_shimmer_off_gives_solid_bars():
+    cfg = LayoutConfig(shimmer=False)
+    ss = [s("a", "/a", AgentState.WORKING)]
+    assert render(ss, cfg, shimmer_phase=1)["10"]["fill_colors"] == [cfg.colors[AgentState.WORKING]]
+    assert not shimmering(ss, cfg)
+
+
+def test_shimmer_validates_against_busylib():
+    elements = render([s("a", "/a", AgentState.WORKING)], LayoutConfig(), shimmer_phase=1)
     DisplayElements.model_validate({"application_name": "agentbar", "elements": list(elements.values())})

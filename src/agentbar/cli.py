@@ -25,7 +25,9 @@ def _run(args: argparse.Namespace) -> int:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     if not args.verbose:
-        logging.getLogger("busylib").setLevel(logging.WARNING)  # logs every request at INFO
+        # busylib and its HTTP client each log every request at INFO.
+        for name in ("busylib", "httpx", "httpx2"):
+            logging.getLogger(name).setLevel(logging.WARNING)
     cfg = load(args.config)
     sink = LogSink() if args.dry_run else BusyBarSink(cfg.busybar, cfg.timing.busy_retry_s)
     asyncio.run(Daemon(cfg, sink).run())

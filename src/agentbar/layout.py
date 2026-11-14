@@ -5,7 +5,8 @@ the display is left to other applications. Each tile is a short label
 (initials of the session name) above a row of small squares, one per running
 subagent in that agent's state colour, above a thin bar in the session's own
 state colour. The label takes the colour of the most active state of the
-session and its agents.
+session and its agents. A WORKING bar shimmers: its horizontal gradient flips
+direction with shimmer_phase.
 """
 
 from __future__ import annotations
@@ -104,7 +105,7 @@ def state_color(state: AgentState, cfg: LayoutConfig, blink_on: bool, text: bool
     return color
 
 
-def rectangle(element_id: str, x: int, y: int, width: int, height: int, color: str) -> dict:
+def rectangle(element_id: str, x: int, y: int, width: int, height: int, colors: list[str], fill: str = "solid") -> dict:
     return {
         "id": element_id,
         "type": "rectangle",
@@ -113,27 +114,31 @@ def rectangle(element_id: str, x: int, y: int, width: int, height: int, color: s
         "y": y,
         "width": width,
         "height": height,
-        "fill": "solid",
-        "fill_colors": [color],
+        "fill": fill,
+        "fill_colors": colors,
         "border_width": 0,
     }
 
 
-def render(sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True) -> dict[str, dict]:
+def bar_fill(s: Session, cfg: LayoutConfig, blink_on: bool, shimmer_phase: int) -> tuple[str, list[str]]:
+    color = state_color(s.state, cfg, blink_on)
+    if not (cfg.shimmer and s.state is AgentState.WORKING):
+        return "solid", [color]
+    colors = [color, dim(color, cfg.shimmer_factor)]
+    return "gradient_h", colors[::-1] if shimmer_phase % 2 else colors
+
+
+def render(
+    sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True, shimmer_phase: int = 0
+) -> dict[str, dict]:
     shown = select(sessions, cfg)
     x0 = region_x(cfg)
     out: dict[str, dict] = {}
     for slot, (s, label) in enumerate(zip(shown, labels(shown, cfg.name_chars), strict=True)):
         x = x0 + slot * (cfg.tile_width + cfg.gap)
         bar_id, text_id = element_ids(slot)
-        out[bar_id] = rectangle(
-            bar_id,
-            x,
-            FRONT_HEIGHT - cfg.bar_height,
-            cfg.tile_width,
-            cfg.bar_height,
-            state_color(s.state, cfg, blink_on),
-        )
+        fill, colors = bar_fill(s, cfg, blink_on, shimmer_phase)
+        out[bar_id] = rectangle(bar_id, x, FRONT_HEIGHT - cfg.bar_height, cfg.tile_width, cfg.bar_height, colors, fill)
         agents = shown_agents(s, cfg)
         for i, (agent, agent_id) in enumerate(zip(agents, agent_ids(slot, len(agents)), strict=True)):
             out[agent_id] = rectangle(
@@ -142,7 +147,7 @@ def render(sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True) ->
                 FRONT_HEIGHT - cfg.bar_height - cfg.agent_size,
                 cfg.agent_size,
                 cfg.agent_size,
-                state_color(agent.state, cfg, blink_on),
+                [state_color(agent.state, cfg, blink_on)],
             )
         out[text_id] = {
             "id": text_id,
@@ -160,3 +165,7 @@ def render(sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True) ->
 
 def blinking(sessions: list[Session], cfg: LayoutConfig) -> bool:
     return any(s.top_state is AgentState.NEEDS_INPUT for s in select(sessions, cfg))
+
+
+def shimmering(sessions: list[Session], cfg: LayoutConfig) -> bool:
+    return cfg.shimmer and any(s.state is AgentState.WORKING for s in select(sessions, cfg))
