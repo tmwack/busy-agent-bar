@@ -64,6 +64,10 @@ class Session:
     pid: int | None = None
     detail: str | None = None
     agents: dict[str, Agent] = field(default_factory=dict)
+    # Set by the first prompt, tool call or subagent. Sessions that only started (Claude
+    # Code's pre-started spares, a launcher's own session, untouched background
+    # sessions) fire SessionStart too, and stay hidden until they do something.
+    active: bool = False
 
     @property
     def top_state(self) -> AgentState:

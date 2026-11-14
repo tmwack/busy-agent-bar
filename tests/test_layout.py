@@ -20,7 +20,7 @@ from agentbar.model import Agent, AgentState, Session
 
 
 def s(sid, cwd, state=AgentState.WORKING, first=0.0):
-    return Session("cc", sid, first_seen=first, last_event=first, state=state, cwd=cwd)
+    return Session("cc", sid, first_seen=first, last_event=first, state=state, cwd=cwd, active=True)
 
 
 def test_region_right_aligned_by_default():
@@ -250,3 +250,10 @@ def test_every_element_stacks_by_its_id():
     out = render(ss, LayoutConfig(), shimmer_phase=1)
     assert all(e["z_index"] == int(i) for i, e in out.items())
     assert out["100"]["z_index"] < out["104"]["z_index"] < out["110"]["z_index"] < out["120"]["z_index"]
+
+
+def test_sessions_without_activity_get_no_tile():
+    spare = s("spare", "/w/charlie", AgentState.IDLE, 1)
+    spare.active = False
+    ss = [spare, s("a", "/w/agent-bar", AgentState.WORKING, 2)]
+    assert [x.session_id for x in select(ss, LayoutConfig())] == ["a"]

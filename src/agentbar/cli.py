@@ -90,7 +90,8 @@ def _status(_: argparse.Namespace) -> int:
         where = s["cwd"] or "-"
         if s.get("title"):
             where = f'"{s["title"]}" {where}'
-        print(f"{s['state']:<12} {age:>5}s  {where}  ({s['source']} {s['session_id'][:8]} pid={s['pid']})")
+        hidden = "" if s.get("active", True) else "  [hidden until its first prompt]"
+        print(f"{s['state']:<12} {age:>5}s  {where}  ({s['source']} {s['session_id'][:8]} pid={s['pid']}){hidden}")
         for a in s.get("agents", []):
             print(f"  └ {a['state']:<12} {a['agent_type'] or 'agent'} {a['agent_id'][:12]}")
     if not status["sessions"]:

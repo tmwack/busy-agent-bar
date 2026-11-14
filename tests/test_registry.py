@@ -111,3 +111,21 @@ def test_finished_agent_pulses_then_goes():
     assert not r.tick(5.9)
     assert r.tick(6.0)
     assert r.sessions()[0].agents == {}
+
+
+def test_session_becomes_active_on_first_work():
+    r = Registry(300, 7200)
+    r.apply(st(AgentState.IDLE, 1))  # SessionStart
+    r.apply(AgentEvent("cc", "s1", EventKind.TOUCH, 2))  # e.g. a notification
+    assert not r.sessions()[0].active
+    assert r.apply(st(AgentState.WORKING, 3))  # first prompt or tool call
+    assert r.sessions()[0].active
+    r.apply(st(AgentState.DONE, 4))
+    assert r.sessions()[0].active  # stays shown once used
+
+
+def test_subagent_activity_marks_session_active():
+    r = Registry(300, 7200)
+    r.apply(st(AgentState.IDLE, 1))
+    r.apply(ag(AgentState.WORKING, 2))
+    assert r.sessions()[0].active

@@ -80,6 +80,11 @@ Working and done share green: working moves, done is a full, still bar. Red is
 left out on purpose: the bar's own BUSY focus timer is red. See
 `CLAUDE.md` for the reasons behind each colour.
 
+A session gets a tile only once it does something: a prompt, a tool call or a
+subagent. Claude Code also starts sessions nobody is using (spare background
+processes, untouched background sessions), and those stay off the bar.
+`agentbar status` lists them as hidden.
+
 If there are more sessions than tiles, higher-priority states win a tile
 (needs input > working > done > idle), counting each session's subagents.
 Tiles stay in first-seen order. Squares follow the same rule within a tile.

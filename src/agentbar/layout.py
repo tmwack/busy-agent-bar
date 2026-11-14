@@ -41,7 +41,7 @@ def region_x(cfg: LayoutConfig) -> int:
 
 def select(sessions: list[Session], cfg: LayoutConfig) -> list[Session]:
     """Sessions that get a tile, in stable (first-seen) order."""
-    pool = [s for s in sessions if cfg.show_idle or s.top_state is not AgentState.IDLE]
+    pool = [s for s in sessions if s.active and (cfg.show_idle or s.top_state is not AgentState.IDLE)]
     if len(pool) > cfg.max_tiles:
         pool = sorted(pool, key=lambda s: (-s.top_state, s.first_seen))[: cfg.max_tiles]
     return sorted(pool, key=lambda s: s.first_seen)

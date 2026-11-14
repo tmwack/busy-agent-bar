@@ -66,6 +66,10 @@ class Registry:
             changed = True
         if ev.pid:
             session.pid = ev.pid
+        if ev.kind is EventKind.STATE and ev.state is not AgentState.IDLE and not session.active:
+            log.info("session %s active", ev.session_id)
+            session.active = True
+            changed = True
         if ev.agent_id is not None:
             return self._apply_agent(session, ev) or changed
         running = [a for a in session.agents.values() if a.ended_at is None]

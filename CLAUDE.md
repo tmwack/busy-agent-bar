@@ -20,6 +20,15 @@ v1 ships only a Claude Code adapter.
   `SubagentStop`.
 - **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
   16 px for other apps. Rotating through sessions is deferred.
+- **Only sessions with activity get a tile:** a session is hidden until its
+  first prompt, tool call or subagent. Claude Code fires `SessionStart` for
+  processes nobody is using: the pre-started `bg-spare` process its
+  background daemon keeps ready, the session of a `claude` used only to get
+  back to a background session, and background sessions that never got a
+  prompt. Running `claude` in a Macuake tab parked in `~/src/twack/charlie`
+  put three such tiles on the bar (2026-11-14). Hiding "background" processes
+  instead isn't an option: a session you're using can also run under the
+  daemon's `--bg-pty-host`. `agentbar status` still lists hidden sessions.
 - **Tile label:** 4 characters: initials of the session title (set with
   `--name` or `/rename`), else of the cwd basename. Words split on `-`, `_`,
   spaces and case changes; missing characters are `-`. `busy-agent-bar` →
