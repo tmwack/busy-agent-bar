@@ -120,7 +120,7 @@ class Daemon:
                 self.sink.invalidate()
                 next_refresh = mono + timing.refresh_s
             blink_on = int(mono / half) % 2 == 0
-            shimmer_phase = int(mono / step) % 4
+            shimmer_phase = int(mono / step)  # frame count; layout takes each animation's cycle
             await self.sink.apply(layout.render(sessions, self.cfg.layout, blink_on, shimmer_phase))
             timeout = 1.0
             if layout.blinking(sessions, self.cfg.layout):

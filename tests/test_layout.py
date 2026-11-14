@@ -165,14 +165,14 @@ def test_working_bar_bounces_between_end_caps():
     cfg = LayoutConfig()
     working = cfg.colors[AgentState.WORKING]
     ss = [s("a", "/a", AgentState.WORKING)]
-    frames = [render(ss, cfg, shimmer_phase=p) for p in range(5)]
+    frames = [render(ss, cfg, shimmer_phase=p) for p in range(7)]
     for f in frames:
         assert f["100"]["fill"] == "gradient_h" and f["100"]["fill_colors"] == [OFF, OFF]
         assert (f["102"]["x"], f["103"]["x"], f["102"]["width"]) == (16, 33, 1)  # caps on the outer columns
         assert f["102"]["fill_colors"] == f["104"]["fill_colors"] == [working]
-    # Segment: left, centre, right, centre, then wraps; it touches a cap at either end.
-    assert [f["104"]["x"] - 16 for f in frames] == [1, 6, 12, 6, 1]
-    assert frames[2]["104"]["x"] + cfg.shimmer_width == frames[2]["103"]["x"]
+    # Segment: four stops, bouncing 1-2-3-4-3-2, then wraps; it touches a cap at either end.
+    assert [f["104"]["x"] - 16 for f in frames] == [1, 4, 8, 12, 8, 4, 1]
+    assert frames[3]["104"]["x"] + cfg.shimmer_width == frames[3]["103"]["x"]
     assert frames[0]["104"]["width"] == cfg.shimmer_width
     assert shimmering(ss, cfg)
 

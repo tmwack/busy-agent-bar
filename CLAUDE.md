@@ -68,10 +68,11 @@ v1 ships only a Claude Code adapter.
     Each state now also has a non-colour cue:
 - **Needs input:** amber plus blinking.
 - **Working:** green, with motion. The session's bar goes dark except for
-  its two outer columns (end caps) and a 5 px segment that steps left,
-  centre, right, centre between them (touching a cap at either end), one frame every `shimmer_step_s`
-  (1 s), so it bounces end to end and back every 4 s. A working agent's 2×2
-  square is dim with one bright pixel stepping clockwise on the same frames.
+  its two outer columns (end caps) and a 5 px segment that bounces between
+  them over four stops in six frames (1-2-3-4-3-2, touching a cap at either
+  end), one frame every `shimmer_step_s` (1 s), so a full bounce takes 6 s. A working agent's 2×2
+  square is dim with one bright pixel stepping clockwise on the same frame
+  clock (four frames per turn).
   That's about one draw a second. An earlier two-colour gradient shimmer
   (2026-11-14) didn't read as motion on the 2 px bar, so it was replaced.
   Labels stay still.

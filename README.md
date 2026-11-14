@@ -72,7 +72,7 @@ leaving one blank row above the squares instead of three.
 | State | Colour | Behaviour |
 | --- | --- | --- |
 | needs input | amber | blinks (bright/dim, 1 Hz) |
-| working | green | a segment bounces between the bar's end caps (every 4 s); working agents' squares spin a bright pixel clockwise |
+| working | green | a segment bounces between the bar's end caps (every 6 s); working agents' squares spin a bright pixel clockwise |
 | done | green, still and solid | becomes idle after 1 hour |
 | idle | steel-blue label, dim steel-blue bar | |
 
@@ -129,7 +129,7 @@ idle = "#6090A8"
 done_decay_s = 3600
 session_ttl_s = 7200        # only for sessions whose process couldn't be found
 blink_period_s = 1.0
-shimmer_step_s = 1.0        # seconds per animation frame (4 frames per bounce)
+shimmer_step_s = 1.0        # seconds per animation frame (6 per bounce, 4 per spin)
 busy_retry_s = 5.0
 refresh_s = 60.0
 ```

@@ -8,7 +8,7 @@ state colour. The label takes the colour of the most active state of the
 session and its agents. While a session works, its bar goes dark between two lit
 end caps and a segment bounces between them; a working agent's square is dim
 with one bright quarter stepping clockwise. shimmer_phase steps both through
-four frames.
+frames: six per bounce, four per spin.
 """
 
 from __future__ import annotations
@@ -143,10 +143,11 @@ def bar_elements(s: Session, cfg: LayoutConfig, slot: int, x: int, blink_on: boo
     bar_id = element_id(slot, 0)
     if not (cfg.shimmer and s.state is AgentState.WORKING):
         return {bar_id: rectangle(bar_id, x, y, w, h, [color, color], "gradient_h")}
-    # Caps on the outer columns and the segment stepping left, centre, right, centre;
-    # at either end it touches the cap.
+    # Caps on the outer columns; the segment bounces over four stops in six frames
+    # (1-2-3-4-3-2), touching a cap at either end.
     left, right = 1, w - 1 - cfg.shimmer_width
-    pos = (left, (left + right) // 2, right, (left + right) // 2)[phase % 4]
+    stop = (0, 1, 2, 3, 2, 1)[phase % 6]
+    pos = left + stop * (right - left) // 3
     ids = [element_id(slot, o) for o in (CAP_LEFT, CAP_RIGHT, SEGMENT)]
     return {
         bar_id: rectangle(bar_id, x, y, w, h, [OFF, OFF], "gradient_h"),
