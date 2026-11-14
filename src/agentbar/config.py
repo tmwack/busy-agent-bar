@@ -55,7 +55,7 @@ class LayoutConfig:
     show_idle: bool = True
     dim_factor: float = 0.2  # blink "off" brightness for NEEDS_INPUT
     shimmer: bool = True  # animate WORKING: a bouncing segment on the bar, a spinning pixel on agent squares
-    shimmer_width: int = 4  # width of the bouncing segment
+    shimmer_width: int = 5  # width of the bouncing segment
     shimmer_factor: float = 0.6  # brightness of a working agent's square behind its bright pixel
     colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_COLORS))
     text_colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_TEXT_COLORS))

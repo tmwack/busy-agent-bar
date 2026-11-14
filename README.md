@@ -113,7 +113,7 @@ agent_gap = 1
 show_idle = true
 dim_factor = 0.2            # blink "off" brightness for needs input
 shimmer = true              # animate working sessions and agents
-shimmer_width = 4           # width of the bouncing segment
+shimmer_width = 5           # width of the bouncing segment
 shimmer_factor = 0.6        # brightness of a working agent's square behind its pixel
 
 [layout.colors]

@@ -170,8 +170,9 @@ def test_working_bar_bounces_between_end_caps():
         assert f["100"]["fill"] == "gradient_h" and f["100"]["fill_colors"] == [OFF, OFF]
         assert (f["102"]["x"], f["103"]["x"], f["102"]["width"]) == (16, 33, 1)  # caps on the outer columns
         assert f["102"]["fill_colors"] == f["104"]["fill_colors"] == [working]
-    # Segment: left, centre, right, centre, then wraps; 1 px gap inside each cap.
-    assert [f["104"]["x"] - 16 for f in frames] == [2, 7, 12, 7, 2]
+    # Segment: left, centre, right, centre, then wraps; it touches a cap at either end.
+    assert [f["104"]["x"] - 16 for f in frames] == [1, 6, 12, 6, 1]
+    assert frames[2]["104"]["x"] + cfg.shimmer_width == frames[2]["103"]["x"]
     assert frames[0]["104"]["width"] == cfg.shimmer_width
     assert shimmering(ss, cfg)
 
