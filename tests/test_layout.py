@@ -91,7 +91,7 @@ def test_render_positions_and_blink():
 def test_idle_label_brighter_than_bar():
     cfg = LayoutConfig()
     out = render([s("a", "/a", AgentState.IDLE)], cfg)
-    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.IDLE]]
+    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.IDLE]] * 2
     assert out["11"]["color"] == cfg.text_colors[AgentState.IDLE] != cfg.colors[AgentState.IDLE]
 
 
@@ -120,7 +120,7 @@ def test_agent_squares_sit_on_the_bar():
 def test_bar_is_session_label_is_most_active():
     cfg = LayoutConfig()
     out = render([with_agents(s("a", "/a", AgentState.DONE), AgentState.WORKING)], cfg)
-    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.DONE]]
+    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.DONE]] * 2
     assert out["11"]["color"] == cfg.colors[AgentState.WORKING]
     out = render([with_agents(s("a", "/a", AgentState.WORKING), AgentState.NEEDS_INPUT)], cfg)
     assert out["10"]["fill_colors"][0] == cfg.colors[AgentState.WORKING]  # shimmer, bright end first
@@ -179,18 +179,30 @@ def test_only_working_bars_shimmer():
         with_agents(s("c", "/c", AgentState.IDLE, 3), AgentState.WORKING),
     ]
     out = render(ss, cfg, shimmer_phase=1)
-    assert [out[i]["fill"] for i in ("10", "20", "30")] == ["solid"] * 3
+    for i in ("10", "20", "30"):  # bars are always gradients, one colour unless WORKING
+        assert out[i]["fill"] == "gradient_h" and len(set(out[i]["fill_colors"])) == 1
     assert out["32"]["fill"] == "solid"  # agent squares never shimmer
     assert not shimmering(ss, cfg)
 
 
-def test_shimmer_off_gives_solid_bars():
+def test_shimmer_off_gives_one_colour_bars():
     cfg = LayoutConfig(shimmer=False)
     ss = [s("a", "/a", AgentState.WORKING)]
-    assert render(ss, cfg, shimmer_phase=1)["10"]["fill_colors"] == [cfg.colors[AgentState.WORKING]]
+    assert render(ss, cfg, shimmer_phase=1)["10"]["fill_colors"] == [cfg.colors[AgentState.WORKING]] * 2
     assert not shimmering(ss, cfg)
 
 
 def test_shimmer_validates_against_busylib():
     elements = render([s("a", "/a", AgentState.WORKING)], LayoutConfig(), shimmer_phase=1)
     DisplayElements.model_validate({"application_name": "agentbar", "elements": list(elements.values())})
+
+
+def test_bar_after_shimmer_overwrites_the_gradient():
+    # The firmware updates a re-posted rectangle in place, and its solid fill keeps the
+    # old gradient; a done bar must therefore be sent as a one-colour gradient.
+    cfg = LayoutConfig()
+    sess = s("a", "/a", AgentState.WORKING)
+    assert len(set(render([sess], cfg)["10"]["fill_colors"])) == 2
+    sess.state = AgentState.DONE
+    bar = render([sess], cfg)["10"]
+    assert bar["fill"] == "gradient_h" and bar["fill_colors"] == [cfg.colors[AgentState.DONE]] * 2

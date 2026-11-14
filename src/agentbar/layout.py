@@ -121,9 +121,16 @@ def rectangle(element_id: str, x: int, y: int, width: int, height: int, colors: 
 
 
 def bar_fill(s: Session, cfg: LayoutConfig, blink_on: bool, shimmer_phase: int) -> tuple[str, list[str]]:
+    """Bars are always a horizontal gradient; a solid bar is one colour to itself.
+
+    Re-posting an element id updates the widget in place, and the firmware's solid
+    fill (rectangle_widget_set_background in applications/services/canvas/widgets/
+    rectangle.c) never resets the gradient a shimmer set. A "solid" bar after a
+    shimmer would keep fading to the old colour at its right end.
+    """
     color = state_color(s.state, cfg, blink_on)
     if not (cfg.shimmer and s.state is AgentState.WORKING):
-        return "solid", [color]
+        return "gradient_h", [color, color]
     colors = [color, dim(color, cfg.shimmer_factor)]
     return "gradient_h", colors[::-1] if shimmer_phase % 2 else colors
 

@@ -141,6 +141,13 @@ saw, so a `/rename` shows on the tile after the next prompt.
   scoped to `application_name` and leaves other apps' drawings alone.
 - Draw calls add to what's on screen.
 - Element ids double as z-order (higher sits on top).
+- Re-posting an element id updates the existing widget in place (seen on the
+  bar, 2026-11-14). A rectangle's `solid` fill sets only the main colour and
+  never resets an earlier gradient's direction or end colour
+  (`rectangle_widget_set_background` in
+  `applications/services/canvas/widgets/rectangle.c`). So a bar that was a
+  `gradient_h` keeps fading to the old colour after a `solid` update. Bars
+  are therefore always sent as `gradient_h`, `[c, c]` when not shimmering.
 
 **Priority and BUSY timer**
 - A lower-priority draw is refused with `409 Not drawn due to low priority`.
@@ -195,8 +202,9 @@ saw, so a `/rename` shows on the tile after the next prompt.
 
 ## Verify on device first
 
-1. Re-posting an element with an existing `id` replaces it. Look for
-   ghosting or duplicates when a tile changes state.
+1. Re-posting an element with an existing `id` updates it in place
+   (confirmed 2026-11-14, see Drawing). Still look for ghosting or
+   duplicates when a tile changes state.
 2. Other apps' drawings stay visible next to the tiles.
 3. Tiles hide during a BUSY session (409 path) and come back afterwards.
 4. Whether `Stop` fires on an Esc interrupt. If not, the tile stays WORKING
