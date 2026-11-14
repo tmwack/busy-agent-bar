@@ -1,9 +1,10 @@
-"""agentbar CLI: run | status | install | uninstall."""
+"""agentbar CLI: run | status | screen | install | uninstall."""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import logging
 import socket
@@ -34,17 +35,54 @@ def _run(args: argparse.Namespace) -> int:
     return 0
 
 
-def _status(_: argparse.Namespace) -> int:
+def _ask(kind: str) -> dict | None:
+    """Send one request to the daemon and return its reply."""
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.settimeout(2)
+            sock.settimeout(5)
             sock.connect(str(socket_path()))
-            sock.sendall(json.dumps({"v": 1, "type": "status"}).encode() + b"\n")
-            data = sock.makefile("rb").readline()
+            sock.sendall(json.dumps({"v": 1, "type": kind}).encode() + b"\n")
+            return json.loads(sock.makefile("rb").readline())
     except OSError as exc:
         print(f"daemon not reachable at {socket_path()}: {exc}", file=sys.stderr)
+        return None
+
+
+def pixel_symbol(r: int, g: int, b: int) -> str:
+    """Rough colour of one framebuffer pixel, as a terminal block."""
+    if max(r, g, b) < 24:
+        return "⬛"
+    if r > 2 * b and g > 2 * b and r > 128:
+        return "🟨"  # amber
+    if g > 2 * r and g >= b:
+        return "🟩" if g >= 150 else "🟢"  # green, dim green
+    if b > r and b >= g:
+        return "🟦"  # cyan / steel blue
+    return "⬜"
+
+
+def _screen(args: argparse.Namespace) -> int:
+    for i in range(args.frames):
+        reply = _ask("screen")
+        if reply is None:
+            return 1
+        if not reply.get("rgb"):
+            print("no capture (bar unreachable, or the daemon runs with --dry-run)", file=sys.stderr)
+            return 1
+        rgb = base64.b64decode(reply["rgb"])
+        if args.frames > 1:
+            print(f"capture {i + 1}")
+        for y in range(16):
+            print("".join(pixel_symbol(*rgb[(y * 72 + x) * 3 : (y * 72 + x) * 3 + 3]) for x in range(72)))
+        if i + 1 < args.frames:
+            time.sleep(args.interval)
+    return 0
+
+
+def _status(_: argparse.Namespace) -> int:
+    status = _ask("status")
+    if status is None:
         return 1
-    status = json.loads(data)
     print(f"bar: {'unreachable' if not status['reachable'] else 'yielding to BUSY' if status['blocked'] else 'ok'}")
     now = time.time()
     for s in status["sessions"]:
@@ -89,6 +127,11 @@ def main(argv: list[str] | None = None) -> int:
     run.set_defaults(fn=_run)
 
     sub.add_parser("status", help="show sessions tracked by the daemon").set_defaults(fn=_status)
+
+    screen = sub.add_parser("screen", help="capture the bar's front display through the daemon")
+    screen.add_argument("--frames", type=int, default=1, help="number of captures")
+    screen.add_argument("--interval", type=float, default=1.0, help="seconds between captures")
+    screen.set_defaults(fn=_screen)
 
     for name, fn, text in (
         ("install", _install, "add Claude Code hooks and the launchd agent"),

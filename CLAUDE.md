@@ -95,7 +95,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/adapters/` | Per-harness `normalize(payload, ts, pid) -> AgentEvent`. Register new ones in `__init__.py`. |
 | `src/agentbar/model.py` | `AgentState` (its int value is tile priority), `AgentEvent`, `Session`, `Agent` (a subagent inside a session). `Session.top_state` is the most active state of the session and its agents. |
 | `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). Events with an `agent_id` change that agent only, never the session's state. |
-| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `100*(slot+1)` plus an offset: `+0` bar, `+1` label, `+2`/`+3` end caps and `+4` bouncing segment while working, `+10`… agent squares, `+20`… each working agent's bright pixel. |
+| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Each element's `z_index` is its id. Element ids are `100*(slot+1)` plus an offset: `+0` bar, `+1` label, `+2`/`+3` end caps and `+4` bouncing segment while working, `+10`… agent squares, `+20`… each working agent's bright pixel. |
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking; also wakes on each shimmer frame). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
@@ -151,7 +151,13 @@ saw, so a `/rename` shows on the tile after the next prompt.
 - Clear: `DELETE /api/display/draw`, optionally with `element_ids`. It is
   scoped to `application_name` and leaves other apps' drawings alone.
 - Draw calls add to what's on screen.
-- Element ids double as z-order (higher sits on top).
+- Stacking order is each element's `z_index` (higher on top), not its id.
+  Without one, the firmware assigns 0, 10, 20… by the element's position
+  within that one draw request (`api_display.c`, `default_z_index`). An
+  element re-sent alone later can then tie with, and sink under, one drawn
+  earlier. agentbar sends `z_index` = id on every element. This was seen on
+  the bar, 2026-11-14: the bounce segment vanished under the dark bar, and
+  the agent pixel under its square.
 - Re-posting an element id updates the existing widget in place (seen on the
   bar, 2026-11-14). A rectangle's `solid` fill sets only the main colour and
   never resets an earlier gradient's direction or end colour

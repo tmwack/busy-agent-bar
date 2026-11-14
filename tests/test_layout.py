@@ -9,6 +9,7 @@ from agentbar.layout import (
     initials,
     labels,
     max_agents,
+    pulsing,
     region_x,
     render,
     select,
@@ -227,3 +228,25 @@ def test_bar_after_shimmer_overwrites_the_gradient():
     out = render([sess], cfg)
     assert out["100"]["fill"] == "gradient_h" and out["100"]["fill_colors"] == [cfg.colors[AgentState.DONE]] * 2
     assert not {"102", "103", "104"} & out.keys()  # caps and segment are removed
+
+
+def test_finished_agent_square_pulses():
+    cfg = LayoutConfig()
+    done = cfg.colors[AgentState.DONE]
+    sess = s("a", "/a", AgentState.DONE)
+    sess.agents["x"] = Agent("x", first_seen=0, state=AgentState.DONE, ended_at=10.0)
+    bright = render([sess], cfg, now=10.2, pulse_s=1.0)
+    faded = render([sess], cfg, now=10.6, pulse_s=1.0)
+    assert bright["110"]["fill_colors"] == [done]
+    assert faded["110"]["fill_colors"] == [dim(done, cfg.shimmer_factor)]
+    assert "120" not in bright and "120" not in faded  # no spinning pixel
+    assert pulsing([sess], cfg) and not shimmering([sess], cfg)
+
+
+def test_every_element_stacks_by_its_id():
+    # The firmware stacks by z_index, defaulting to position within one draw request;
+    # since only changed elements are re-sent, z_index must always be explicit.
+    ss = [with_agents(s("a", "/a", AgentState.WORKING), AgentState.WORKING), s("b", "/b", AgentState.DONE, 2)]
+    out = render(ss, LayoutConfig(), shimmer_phase=1)
+    assert all(e["z_index"] == int(i) for i, e in out.items())
+    assert out["100"]["z_index"] < out["104"]["z_index"] < out["110"]["z_index"] < out["120"]["z_index"]

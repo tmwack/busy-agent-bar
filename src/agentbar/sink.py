@@ -47,6 +47,14 @@ class BusyBarSink:
         except BusyBarError as exc:
             log.warning("clear failed: %s", exc)
 
+    async def screen(self) -> bytes | None:
+        """What the front display shows right now: 72x16 RGB, 3 bytes per pixel."""
+        try:
+            return await self.client.screen(0)
+        except BusyBarError as exc:
+            log.warning("screen capture failed: %s", exc)
+            return None
+
     async def apply(self, desired: dict[str, dict]) -> None:
         now = self._clock()
         if now < self._blocked_until:
@@ -105,6 +113,9 @@ class LogSink:
 
     async def reset(self) -> None:
         self._last = None
+
+    async def screen(self) -> bytes | None:
+        return None
 
     async def apply(self, desired: dict[str, dict]) -> None:
         if desired == self._last:

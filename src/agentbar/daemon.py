@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -33,11 +34,21 @@ def claim_socket(path: Path) -> None:
     raise SystemExit(f"agentbar daemon already running on {path}")
 
 
+FRAME_SLACK_S = 0.01  # wake just after a frame boundary, never just before it
+
+
+def next_boundary(mono: float, period: float) -> float:
+    """Seconds until just after the next multiple of period on the monotonic clock."""
+    return (int(mono / period) + 1) * period - mono + FRAME_SLACK_S
+
+
 class Daemon:
     def __init__(self, cfg: Config, sink) -> None:
         self.cfg = cfg
         self.sink = sink
-        self.registry = Registry(cfg.timing.done_decay_s, cfg.timing.session_ttl_s)
+        self.registry = Registry(
+            cfg.timing.done_decay_s, cfg.timing.session_ttl_s, agent_pulse_s=cfg.timing.agent_pulse_s
+        )
         layout.region_x(cfg.layout)  # fail fast on a layout that does not fit
         self._wake = asyncio.Event()
         self._stop = asyncio.Event()
@@ -93,6 +104,12 @@ class Daemon:
                 writer.write(json.dumps(self.status()).encode() + b"\n")
                 await writer.drain()
                 return
+            if msg.get("type") == "screen":
+                rgb = await self.sink.screen()
+                reply = {"rgb": base64.b64encode(rgb).decode() if rgb else None}
+                writer.write(json.dumps(reply).encode() + b"\n")
+                await writer.drain()
+                return
             ev = adapters.normalize(
                 str(msg.get("source", "")),
                 msg.get("payload") or {},
@@ -107,26 +124,36 @@ class Daemon:
             writer.close()
 
     async def _render_loop(self) -> None:
-        timing = self.cfg.timing
+        timing, lay = self.cfg.timing, self.cfg.layout
         half = timing.blink_period_s / 2
         step = timing.shimmer_step_s
+        pulse_half = timing.agent_pulse_s / 2
         next_refresh = time.monotonic() + timing.refresh_s
         while not self._stop.is_set():
             self._wake.clear()
-            self.registry.tick(time.time())
+            now = time.time()
+            self.registry.tick(now)
             sessions = self.registry.sessions()
             mono = time.monotonic()
             if mono >= next_refresh:
                 self.sink.invalidate()
                 next_refresh = mono + timing.refresh_s
+            # One frame clock: every animation steps on multiples of its period counted
+            # from the same origin, so changes that fall on the same instant go out in
+            # one draw request.
             blink_on = int(mono / half) % 2 == 0
             shimmer_phase = int(mono / step)  # frame count; layout takes each animation's cycle
-            await self.sink.apply(layout.render(sessions, self.cfg.layout, blink_on, shimmer_phase))
-            timeout = 1.0
-            if layout.blinking(sessions, self.cfg.layout):
-                timeout = min(timeout, half)
-            if layout.shimmering(sessions, self.cfg.layout):
-                timeout = min(timeout, step - mono % step)  # wake on the next frame
+            await self.sink.apply(layout.render(sessions, lay, blink_on, shimmer_phase, now, timing.agent_pulse_s))
+            periods = [
+                p
+                for p, active in (
+                    (half, layout.blinking(sessions, lay)),
+                    (step, layout.shimmering(sessions, lay)),
+                    (pulse_half, layout.pulsing(sessions, lay)),
+                )
+                if active
+            ]
+            timeout = min([next_boundary(mono, p) for p in periods], default=1.0)
             await self._sleep(timeout)
 
     async def _sleep(self, timeout: float) -> None:

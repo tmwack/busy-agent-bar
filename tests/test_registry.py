@@ -96,3 +96,18 @@ def test_stop_with_nothing_in_flight_clears_agents():
     assert r.sessions()[0].agents  # Stop without background info keeps them
     assert r.apply(AgentEvent("cc", "s1", EventKind.STATE, 3, state=AgentState.DONE, agents_idle=True))
     assert r.sessions()[0].agents == {}
+
+
+def test_finished_agent_pulses_then_goes():
+    r = Registry(300, 7200, agent_pulse_s=1.0)
+    r.apply(st(AgentState.IDLE, 1))
+    r.apply(ag(AgentState.WORKING, 2))
+    assert r.apply(ag(None, 5, kind=EventKind.END))
+    s = r.sessions()[0]
+    assert s.agents["a1"].ended_at == 5 and s.agents["a1"].state is AgentState.DONE
+    assert s.top_state is AgentState.IDLE  # a finished agent no longer colours the label
+    assert not r.apply(ag(AgentState.WORKING, 5.5))  # a late hook doesn't revive it
+    assert not r.apply(ag(None, 5.6, kind=EventKind.END))
+    assert not r.tick(5.9)
+    assert r.tick(6.0)
+    assert r.sessions()[0].agents == {}

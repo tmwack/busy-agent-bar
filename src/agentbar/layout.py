@@ -79,9 +79,11 @@ def dim(color: str, factor: float) -> str:
     return "#" + "".join(f"{round(v * factor):02X}" for v in rgb)
 
 
-# Element ids double as z-order on the device (higher on top). Each tile has a block of
-# 100: +0 bar, +1 label, +2/+3 end caps and +4 the moving segment while it works,
-# +10.. agent squares, +20.. the bright pixel on each working agent's square.
+# Each tile has a block of 100 element ids, and each element's z_index is its id (higher
+# on top). The z_index must be sent explicitly: the firmware otherwise stacks elements by
+# their position within each draw request, and we only send what changed. Offsets: +0 bar,
+# +1 label, +2/+3 end caps and +4 the moving segment while it works, +10.. agent squares,
+# +20.. the bright pixel on each working agent's square.
 CAP_LEFT, CAP_RIGHT, SEGMENT, AGENT, AGENT_PIXEL = 2, 3, 4, 10, 20
 OFF = "#000000"
 
@@ -116,6 +118,7 @@ def state_color(state: AgentState, cfg: LayoutConfig, blink_on: bool, text: bool
 def rectangle(element_id: str, x: int, y: int, width: int, height: int, colors: list[str], fill: str = "solid") -> dict:
     return {
         "id": element_id,
+        "z_index": int(element_id),
         "type": "rectangle",
         "display": "front",
         "x": x,
@@ -160,10 +163,18 @@ def bar_elements(s: Session, cfg: LayoutConfig, slot: int, x: int, blink_on: boo
 
 
 def agent_elements(
-    agents: list[Agent], cfg: LayoutConfig, slot: int, x: int, blink_on: bool, phase: int
+    agents: list[Agent],
+    cfg: LayoutConfig,
+    slot: int,
+    x: int,
+    blink_on: bool,
+    phase: int,
+    now: float | None,
+    pulse_s: float,
 ) -> dict[str, dict]:
     """One square per agent. A working agent's square is dim with one bright quarter
-    stepping clockwise; other states are solid (needs input blinks)."""
+    stepping clockwise; a finished one pulses (bright, then dim) before it goes; other
+    states are solid (needs input blinks)."""
     size, y = cfg.agent_size, FRONT_HEIGHT - cfg.bar_height - cfg.agent_size
     q = max(size // 2, 1)
     dx, dy = ((0, 0), (q, 0), (q, q), (0, q))[phase % 4]  # clockwise from top left
@@ -172,6 +183,12 @@ def agent_elements(
         ax = x + i * (size + cfg.agent_gap)
         color = state_color(agent.state, cfg, blink_on)
         square_id = element_id(slot, AGENT + i)
+        if agent.ended_at is not None:
+            fading = now is not None and now - agent.ended_at >= pulse_s / 2
+            out[square_id] = rectangle(
+                square_id, ax, y, size, size, [dim(color, cfg.shimmer_factor) if fading else color]
+            )
+            continue
         if not (cfg.shimmer and agent.state is AgentState.WORKING):
             out[square_id] = rectangle(square_id, ax, y, size, size, [color])
             continue
@@ -182,7 +199,12 @@ def agent_elements(
 
 
 def render(
-    sessions: list[Session], cfg: LayoutConfig, blink_on: bool = True, shimmer_phase: int = 0
+    sessions: list[Session],
+    cfg: LayoutConfig,
+    blink_on: bool = True,
+    shimmer_phase: int = 0,
+    now: float | None = None,
+    pulse_s: float = 1.0,
 ) -> dict[str, dict]:
     shown = select(sessions, cfg)
     x0 = region_x(cfg)
@@ -191,9 +213,10 @@ def render(
         x = x0 + slot * (cfg.tile_width + cfg.gap)
         _, text_id = element_ids(slot)
         out.update(bar_elements(s, cfg, slot, x, blink_on, shimmer_phase))
-        out.update(agent_elements(shown_agents(s, cfg), cfg, slot, x, blink_on, shimmer_phase))
+        out.update(agent_elements(shown_agents(s, cfg), cfg, slot, x, blink_on, shimmer_phase, now, pulse_s))
         out[text_id] = {
             "id": text_id,
+            "z_index": int(text_id),
             "type": "text",
             "display": "front",
             "x": x,
@@ -210,9 +233,15 @@ def blinking(sessions: list[Session], cfg: LayoutConfig) -> bool:
     return any(s.top_state is AgentState.NEEDS_INPUT for s in select(sessions, cfg))
 
 
+def pulsing(sessions: list[Session], cfg: LayoutConfig) -> bool:
+    """True if a shown agent has finished and its square is still pulsing."""
+    return any(a.ended_at is not None for s in select(sessions, cfg) for a in shown_agents(s, cfg))
+
+
 def shimmering(sessions: list[Session], cfg: LayoutConfig) -> bool:
     """True if a shown session or a shown agent is working, so frames must advance."""
     return cfg.shimmer and any(
-        s.state is AgentState.WORKING or any(a.state is AgentState.WORKING for a in shown_agents(s, cfg))
+        s.state is AgentState.WORKING
+        or any(a.state is AgentState.WORKING and a.ended_at is None for a in shown_agents(s, cfg))
         for s in select(sessions, cfg)
     )

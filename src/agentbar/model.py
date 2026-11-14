@@ -47,6 +47,7 @@ class Agent:
     state: AgentState = AgentState.WORKING
     last_state_ts: float = 0.0
     agent_type: str | None = None
+    ended_at: float | None = None  # set when the agent stops; its square pulses, then goes
 
 
 @dataclass
@@ -66,5 +67,5 @@ class Session:
 
     @property
     def top_state(self) -> AgentState:
-        """Most active state across the session and its agents."""
-        return max([self.state, *(a.state for a in self.agents.values())])
+        """Most active state across the session and its running agents."""
+        return max([self.state, *(a.state for a in self.agents.values() if a.ended_at is None)])
