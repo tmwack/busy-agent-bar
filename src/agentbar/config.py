@@ -14,18 +14,17 @@ HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 # Values are what is sent; the front display applies gamma 2.8, so they land darker and
 # more saturated (#FFC000 shows as about #FFB300). Amber, not red, for needs input: the
-# bar's own BUSY focus timer is red. Colours run warm to cool, and bright to dim, from
-# needs attention to done: amber needs input, green working (shimmering), cyan done, and
-# idle a faded done.
+# bar's own BUSY focus timer is red. Amber needs input, green working and done (working
+# moves, done is a still, solid bar), and a dim steel-blue idle.
 DEFAULT_COLORS = {
     AgentState.IDLE: "#385868",
-    AgentState.DONE: "#00B0FF",
+    AgentState.DONE: "#00C850",
     AgentState.WORKING: "#00C850",
     AgentState.NEEDS_INPUT: "#FFC000",
 }
 
 # Label colours that differ from the bar colour. The idle bar (#385868) drives about 5%
-# luminance, too dim for a readable label; #6090A8 drives about 18%, half of done cyan.
+# luminance, too dim for a readable label; #6090A8 drives about 18%, half of done green.
 DEFAULT_TEXT_COLORS = {
     AgentState.IDLE: "#6090A8",
 }

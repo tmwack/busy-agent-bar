@@ -43,7 +43,7 @@ default. The rest of the display is left to other applications. Each tile shows:
 
 The label takes the most active state of the session and its subagents. A
 session that is done while a background agent works shows a green label and
-square over a cyan bar. A subagent at a permission prompt turns its square
+square over a still green bar. A subagent at a permission prompt turns its square
 and the label amber and blinking, whatever the session itself is doing.
 
 The label is the initials of the session's name, set with `claude --name` or
@@ -73,11 +73,11 @@ leaving one blank row above the squares instead of three.
 | --- | --- | --- |
 | needs input | amber | blinks (bright/dim, 1 Hz) |
 | working | green | a segment bounces between the bar's end caps (every 4 s); working agents' squares spin a bright pixel clockwise |
-| done | cyan | becomes idle after 1 hour |
+| done | green, still and solid | becomes idle after 1 hour |
 | idle | steel-blue label, dim steel-blue bar | |
 
-Colours run warm to cool from "needs you" to "done". Red is left out on
-purpose: the bar's own BUSY focus timer is red. See
+Working and done share green: working moves, done is a full, still bar. Red is
+left out on purpose: the bar's own BUSY focus timer is red. See
 `CLAUDE.md` for the reasons behind each colour.
 
 If there are more sessions than tiles, higher-priority states win a tile
@@ -119,7 +119,7 @@ shimmer_factor = 0.6        # brightness of a working agent's square behind its 
 [layout.colors]
 working = "#00C850"
 needs_input = "#FFC000"
-done = "#00B0FF"
+done = "#00C850"
 idle = "#385868"
 
 [layout.text_colors]        # label colour, where it differs from the bar

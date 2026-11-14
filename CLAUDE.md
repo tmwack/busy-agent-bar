@@ -16,7 +16,7 @@ v1 ships only a Claude Code adapter.
   its session's bar (up to 6 per tile), coloured by that agent's state. The
   bar keeps the main session's state. The label takes the most active state
   of the session and its agents, so a done session with a working background
-  agent has a green label over a cyan bar. A square disappears on
+  agent has a green label over a still green bar with a spinning square. A square disappears on
   `SubagentStop`.
 - **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
   16 px for other apps. Rotating through sessions is deferred.
@@ -37,14 +37,15 @@ v1 ships only a Claude Code adapter.
   | --- | --- | --- | --- |
   | needs input | amber `#FFC000` | `#FFB300` | 0.536 |
   | working | green `#00C850` | `#00BD38` | 0.365 |
-  | done | cyan `#00B0FF` | `#00A1FF` | 0.325 |
+  | done | green `#00C850` (solid, still) | `#00BD38` | 0.365 |
   | idle label | steel blue `#6090A8` | `#487C97` | 0.181 |
   | idle bar | dim steel blue `#385868` | `#204050` | 0.045 |
 
   Reasons, chosen with Tyler (sources read 2026-11-13):
-  - **Warm to cool.** Colours run from warm to cool, and from bright to dim,
-    as a tile goes from needing attention to done: amber, green, cyan, then
-    a faded cyan for idle (Tyler, 2026-11-14).
+  - **Done is a full, still green bar** (Tyler, 2026-11-14). It shares
+    working's green; working moves (dark bar, bouncing segment) and done
+    doesn't. A brief cyan done (warm-to-cool order) was tried the same day
+    and dropped.
   - **No red.** The firmware already uses red for its own BUSY focus timer
     and status lights
     ([`busy_presets.c`](https://raw.githubusercontent.com/busy-app/busybar-firmware/HEAD/applications/main/busy/busy_presets.c),
@@ -55,11 +56,11 @@ v1 ships only a Claude Code adapter.
   - **Prior art.** Amber for waiting follows other agent-status tools, e.g.
     [bsbctl](https://github.com/lxdb/bsbctl) and
     [busybar-ai-progress](https://github.com/alexsuslin/busybar-ai-progress).
-    Those mostly use green for done and cyan or blue for working; this
-    palette swaps them on purpose, for the warm-to-cool order.
+    Green for done matches them too; they mostly use cyan or blue for
+    working, which here is green told apart by motion.
   - **Brightness order.** Needs input is the brightest state; the old red
     was the dimmest.
-  - **Idle is a faded done:** paler and about half as bright, so a parked
+  - **Idle is dim steel blue,** about half as bright as done, so a parked
     tile never outshines a finished one.
   - **Colour blindness.** The old red/orange/green set is the hardest one
     for red-green colour blindness
@@ -74,7 +75,7 @@ v1 ships only a Claude Code adapter.
   That's about one draw a second. An earlier two-colour gradient shimmer
   (2026-11-14) didn't read as motion on the 2 px bar, so it was replaced.
   Labels stay still.
-- **Done:** stays still.
+- **Done:** a full, still green bar.
 - **Idle:** steel-blue label over a dim steel-blue bar, so idle tiles read
   as parked but the label stays legible.
 - **BUSY timer active:** yield, i.e. hide the tiles until it ends.
