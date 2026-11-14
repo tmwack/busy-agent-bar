@@ -24,9 +24,12 @@ v1 ships only a Claude Code adapter.
   `--name` or `/rename`), else of the cwd basename. Words split on `-`, `_`,
   spaces and case changes; missing characters are `-`. `busy-agent-bar` →
   `bab-`, `istari-rfc-equivalency` → `ire-`, `mcpTenancy` → `mt--`,
-  `agentbar` → `a---`. Four characters fit an 18 px tile in the `small` font;
-  a label with two or more `m`/`w` is clipped by 1 px or more, which is
-  accepted.
+  `agentbar` → `a---`. Drawn in the `condensed` font at `y = 0`, so letters
+  use rows 2–8 and rows 0–1 and 9–11 stay blank. Descenders (`g j p q y`)
+  reach row 10, leaving one blank row above the squares, which is accepted.
+  `bab-` fills the 18 px exactly. Four full-width letters (no `- i j l r`),
+  or a duplicate digit (`bab1`), are clipped by 1 px, and each `m v w x` adds
+  a pixel; also accepted.
 - **Needs input:** shown by colour plus blinking.
 - **Idle:** grey label (`#808080`) over a dark bar (`#303030`), so idle tiles
   read as parked but the label stays legible.
@@ -117,6 +120,19 @@ saw, so a `/rename` shows on the tile after the next prompt.
   row 7.
 - Advance widths: most lowercase letters and digits 4 px (3 px glyph + 1 px
   gap); `f j r t 1 -` 3 px; `i l` 2 px; `m w` 6 px.
+- API font names map to firmware fonts in
+  `applications/services/web_server/http_api/api_display.c`: `tiny` →
+  `busy_tiny`, `small` → `busy_regular_5`, `normal` → `busy_regular_7`,
+  `condensed` → `busy_condensed_7`, `bold` → `busy_bold_7`, `large` →
+  `busy_regular_9`, `extra_large` → `busy_bold_10`, `global` →
+  `lana_pixel_regular_11`, `superscript` → `busy_superscript_7`.
+- `condensed` (the label font, measured from
+  `assets/shared/fonts/ttf/busy_condensed_7px.ttf`, which the firmware converts
+  at size 16): line height 11, baseline 2. Ascenders and capitals on rows 2–8
+  below `y`, x-height rows 4–8, descenders rows 9–10. Lowercase advance 5 px
+  (4 px glyph + 1 px gap), digits 5 px, `i j l r -` 4 px, `m v w x` 6 px.
+  Capitals are 6 px, too wide for four in a tile. `normal` has the same
+  lowercase but 6 px digits.
 - A text element with a `width` and no `scroll_rate` is clipped at that width
   (`applications/services/canvas/canvas_widgets.c`); with `scroll_rate` it
   scrolls.

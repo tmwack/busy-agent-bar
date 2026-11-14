@@ -62,8 +62,12 @@ are filled with `-`:
 Sessions with the same label get a digit in place of the last character:
 `bab1`, `bab2`.
 
-Four characters fit an 18 px tile in the bar's `small` font. A label with two
-or more `m` or `w` is a pixel or two wider, and the bar clips it at the tile edge.
+Labels use the bar's `condensed` font (7 px tall, most letters 4 px wide), which
+fills the tile: `bab-` is exactly 18 px. Four full-width letters with no `-`, `i`,
+`j`, `l` or `r` (such as `abcd`, or a duplicate like `bab1`) are 1 px wider, and
+`m`, `v`, `w`, `x` add another pixel each; the bar clips the overflow at the tile
+edge. Rows 0–1 stay blank above the label. Descenders (`g j p q y`) reach row 10,
+leaving one blank row above the squares instead of three.
 
 | State | Colour | Behaviour |
 | --- | --- | --- |
@@ -97,8 +101,8 @@ tile_width = 18
 gap = 1
 max_tiles = 3
 name_chars = 4              # label length
-font = "small"              # tiny, small, normal, condensed, bold, ...
-text_y = 1
+font = "condensed"          # tiny, small, normal, condensed, bold, ...
+text_y = 0
 bar_height = 2
 agent_size = 2              # subagent squares, on top of the bar
 agent_gap = 1

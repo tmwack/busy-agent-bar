@@ -42,9 +42,9 @@ class LayoutConfig:
     tile_width: int = 18
     gap: int = 1
     max_tiles: int = 3
-    name_chars: int = 4  # label length: initials, padded with "-"; 4 fit 18 px in the small font
-    font: str = "small"
-    text_y: int = 1
+    name_chars: int = 4  # label length: initials, padded with "-"; 4 fit 18 px in the condensed font
+    font: str = "condensed"  # busy_condensed_7: 4 px wide glyphs, ink on rows 2-8 below text_y (descenders 9-10)
+    text_y: int = 0
     bar_height: int = 2
     agent_size: int = 2  # subagent squares, sitting on top of the bar
     agent_gap: int = 1
