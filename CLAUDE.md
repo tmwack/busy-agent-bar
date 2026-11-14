@@ -16,7 +16,7 @@ v1 ships only a Claude Code adapter.
   its session's bar (up to 6 per tile), coloured by that agent's state. The
   bar keeps the main session's state. The label takes the most active state
   of the session and its agents, so a done session with a working background
-  agent has a cyan label over a green bar. A square disappears on
+  agent has a green label over a cyan bar. A square disappears on
   `SubagentStop`.
 - **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
   16 px for other apps. Rotating through sessions is deferred.
@@ -36,12 +36,15 @@ v1 ships only a Claude Code adapter.
   | State | Sent | Shows as | Luminance |
   | --- | --- | --- | --- |
   | needs input | amber `#FFC000` | `#FFB300` | 0.536 |
-  | working | cyan `#00B0FF` | `#00A1FF` | 0.325 |
-  | done | green `#00C850` | `#00BD38` | 0.365 |
-  | idle label | sage `#609870` | `#488559` | 0.189 |
-  | idle bar | dim sage `#406048` | `#28482F` | 0.053 |
+  | working | green `#00C850` | `#00BD38` | 0.365 |
+  | done | cyan `#00B0FF` | `#00A1FF` | 0.325 |
+  | idle label | steel blue `#6090A8` | `#487C97` | 0.181 |
+  | idle bar | dim steel blue `#385868` | `#204050` | 0.045 |
 
   Reasons, chosen with Tyler (sources read 2026-11-13):
+  - **Warm to cool.** Colours run from warm to cool, and from bright to dim,
+    as a tile goes from needing attention to done: amber, green, cyan, then
+    a faded cyan for idle (Tyler, 2026-11-14).
   - **No red.** The firmware already uses red for its own BUSY focus timer
     and status lights
     ([`busy_presets.c`](https://raw.githubusercontent.com/busy-app/busybar-firmware/HEAD/applications/main/busy/busy_presets.c),
@@ -49,10 +52,11 @@ v1 ships only a Claude Code adapter.
     and presence lights use red for "do not disturb"
     ([Teams](https://learn.microsoft.com/en-us/microsoftteams/presence-admins),
     page dated 2026-07-16).
-  - **Prior art.** Amber for waiting, cyan for working and green for done
-    follow other agent-status tools, e.g.
+  - **Prior art.** Amber for waiting follows other agent-status tools, e.g.
     [bsbctl](https://github.com/lxdb/bsbctl) and
     [busybar-ai-progress](https://github.com/alexsuslin/busybar-ai-progress).
+    Those mostly use green for done and cyan or blue for working; this
+    palette swaps them on purpose, for the warm-to-cool order.
   - **Brightness order.** Needs input is the brightest state; the old red
     was the dimmest.
   - **Idle is a faded done:** paler and about half as bright, so a parked
@@ -62,13 +66,13 @@ v1 ships only a Claude Code adapter.
     ([Okabe & Ito](https://jfly.uni-koeln.de/color/), 2002, revised 2008).
     Each state now also has a non-colour cue:
 - **Needs input:** amber plus blinking.
-- **Working:** cyan with a shimmering bar. The bar is a two-colour
+- **Working:** green with a shimmering bar. The bar is a two-colour
   horizontal gradient (`gradient_h`) whose direction flips every
   `shimmer_period_s / 2`, about one extra draw a second. Only the session's
   own bar shimmers; labels and agent squares stay solid.
 - **Done:** stays still.
-- **Idle:** sage label over a dim sage bar, so idle tiles read as parked
-  but the label stays legible.
+- **Idle:** steel-blue label over a dim steel-blue bar, so idle tiles read
+  as parked but the label stays legible.
 - **BUSY timer active:** yield, i.e. hide the tiles until it ends.
 - **Platform:** macOS. The bar is connected over USB.
 
@@ -185,7 +189,7 @@ saw, so a `/rename` shows on the tile after the next prompt.
   brightness (2.5 at the lowest) before driving the LEDs
   (`applications/services/front_display/front_display_driver.c`). Dark values
   almost vanish: `#303030` drives about 1% of full output, `#808080` about
-  14%, the idle sage label `#609870` about 19% luminance.
+  14%, the idle label `#6090A8` about 18% luminance.
 
 **Library quirks**
 - `busylib`, and its HTTP client's `httpx2` logger, each log every request
@@ -215,9 +219,9 @@ saw, so a `/rename` shows on the tile after the next prompt.
    `pid` column in `agentbar status`.
 7. How the firmware draws `gradient_h` on the 2 px bar, given gamma 2.8:
    the shimmer should read as light moving, not a jump.
-8. Whether a cyan 2×2 agent square is visible, and whether the shimmer flip
+8. Whether a green 2×2 agent square is visible, and whether the shimmer flip
    ghosts or flickers.
-9. Whether an idle sage tile is clearly distinct from a done tile next to
+9. Whether an idle steel-blue tile is clearly distinct from a done tile next to
    it.
 
 ## Known gaps / next ideas
