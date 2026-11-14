@@ -67,8 +67,11 @@ v1 ships only a Claude Code adapter.
     Each state now also has a non-colour cue:
 - **Needs input:** amber plus blinking.
 - **Working:** green with a shimmering bar. The bar is a two-colour
-  horizontal gradient (`gradient_h`) whose direction flips every
-  `shimmer_period_s / 2`, about one extra draw a second. Only the session's
+  horizontal gradient (`gradient_h`) stepped through four frames, one every
+  `shimmer_step_s` (2 s): bright left, even, bright right, even. The light
+  slides end to end and back over 8 s, about one extra draw every 2 s. The
+  even frames use the midpoint sent value, which carries about the same
+  light as the sloped frames after gamma 2.8, so the bar doesn't pulse. Only the session's
   own bar shimmers; labels and agent squares stay solid.
 - **Done:** stays still.
 - **Idle:** steel-blue label over a dim steel-blue bar, so idle tiles read
@@ -90,7 +93,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). Events with an `agent_id` change that agent only, never the session's state. |
 | `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `10*(slot+1)` (bar), `+1` (text) and `+2`… (agent squares). |
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
-| `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz, which also flips the shimmer; 2 Hz while blinking). Full redraw every `refresh_s`. |
+| `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking; also wakes on each shimmer frame). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
 | `src/agentbar/config.py` | Loads `~/.config/agentbar/config.toml` (all keys optional). Env overrides: `AGENTBAR_CONFIG`, `AGENTBAR_SOCKET`. |
 

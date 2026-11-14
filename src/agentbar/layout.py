@@ -5,8 +5,9 @@ the display is left to other applications. Each tile is a short label
 (initials of the session name) above a row of small squares, one per running
 subagent in that agent's state colour, above a thin bar in the session's own
 state colour. The label takes the colour of the most active state of the
-session and its agents. A WORKING bar shimmers: its horizontal gradient flips
-direction with shimmer_phase.
+session and its agents. A WORKING bar shimmers: shimmer_phase steps it through
+four frames (bright left, even, bright right, even), so the light slides from
+one end to the other and back.
 """
 
 from __future__ import annotations
@@ -131,8 +132,12 @@ def bar_fill(s: Session, cfg: LayoutConfig, blink_on: bool, shimmer_phase: int) 
     color = state_color(s.state, cfg, blink_on)
     if not (cfg.shimmer and s.state is AgentState.WORKING):
         return "gradient_h", [color, color]
-    colors = [color, dim(color, cfg.shimmer_factor)]
-    return "gradient_h", colors[::-1] if shimmer_phase % 2 else colors
+    faded = dim(color, cfg.shimmer_factor)
+    # The even frames sit halfway in sent value, which after the LEDs' gamma 2.8 gives
+    # about the same total light as the sloped frames, so the bar doesn't pulse.
+    even = dim(color, (1 + cfg.shimmer_factor) / 2)
+    frames = ([color, faded], [even, even], [faded, color], [even, even])
+    return "gradient_h", frames[shimmer_phase % 4]
 
 
 def render(

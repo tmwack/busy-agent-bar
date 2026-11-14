@@ -72,7 +72,7 @@ leaving one blank row above the squares instead of three.
 | State | Colour | Behaviour |
 | --- | --- | --- |
 | needs input | amber | blinks (bright/dim, 1 Hz) |
-| working | green | the bar shimmers (its gradient flips once a second) |
+| working | green | the bar shimmers: its light slides end to end and back over 8 s |
 | done | cyan | becomes idle after 1 hour |
 | idle | steel-blue label, dim steel-blue bar | |
 
@@ -128,7 +128,7 @@ idle = "#6090A8"
 done_decay_s = 3600
 session_ttl_s = 7200        # only for sessions whose process couldn't be found
 blink_period_s = 1.0
-shimmer_period_s = 2.0      # the gradient flips every half period
+shimmer_step_s = 2.0        # seconds per shimmer frame (4 frames per cycle)
 busy_retry_s = 5.0
 refresh_s = 60.0
 ```

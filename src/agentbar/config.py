@@ -65,7 +65,7 @@ class TimingConfig:
     done_decay_s: float = 3600  # DONE -> IDLE; an hour, so a finished session is still green after a meeting
     session_ttl_s: float = 7200  # expiry for sessions with no known PID
     blink_period_s: float = 1.0
-    shimmer_period_s: float = 2.0  # the shimmer gradient flips every half period
+    shimmer_step_s: float = 2.0  # seconds per shimmer frame; four frames per back-and-forth
     busy_retry_s: float = 5.0  # retry interval while yielding / bar unreachable
     refresh_s: float = 60.0  # periodic full redraw to self-heal
 

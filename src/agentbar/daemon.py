@@ -109,7 +109,7 @@ class Daemon:
     async def _render_loop(self) -> None:
         timing = self.cfg.timing
         half = timing.blink_period_s / 2
-        shimmer_half = timing.shimmer_period_s / 2
+        step = timing.shimmer_step_s
         next_refresh = time.monotonic() + timing.refresh_s
         while not self._stop.is_set():
             self._wake.clear()
@@ -120,13 +120,13 @@ class Daemon:
                 self.sink.invalidate()
                 next_refresh = mono + timing.refresh_s
             blink_on = int(mono / half) % 2 == 0
-            shimmer_phase = int(mono / shimmer_half) % 2
+            shimmer_phase = int(mono / step) % 4
             await self.sink.apply(layout.render(sessions, self.cfg.layout, blink_on, shimmer_phase))
             timeout = 1.0
             if layout.blinking(sessions, self.cfg.layout):
                 timeout = min(timeout, half)
             if layout.shimmering(sessions, self.cfg.layout):
-                timeout = min(timeout, shimmer_half)
+                timeout = min(timeout, step - mono % step)  # wake on the next frame
             await self._sleep(timeout)
 
     async def _sleep(self, timeout: float) -> None:

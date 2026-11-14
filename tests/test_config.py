@@ -21,6 +21,6 @@ def test_text_colors_must_be_hex(tmp_path):
 
 def test_shimmer_can_be_turned_off(tmp_path):
     path = tmp_path / "config.toml"
-    path.write_text("[layout]\nshimmer = false\n[timing]\nshimmer_period_s = 4.0\n")
+    path.write_text("[layout]\nshimmer = false\n[timing]\nshimmer_step_s = 4.0\n")
     cfg = load(path)
-    assert cfg.layout.shimmer is False and cfg.timing.shimmer_period_s == 4.0
+    assert cfg.layout.shimmer is False and cfg.timing.shimmer_step_s == 4.0

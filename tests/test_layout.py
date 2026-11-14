@@ -164,10 +164,17 @@ def test_working_bar_shimmers():
     cfg = LayoutConfig()
     working = cfg.colors[AgentState.WORKING]
     faded = dim(working, cfg.shimmer_factor)
+    even = dim(working, (1 + cfg.shimmer_factor) / 2)
     ss = [s("a", "/a", AgentState.WORKING)]
-    a, b = render(ss, cfg, shimmer_phase=0)["10"], render(ss, cfg, shimmer_phase=1)["10"]
-    assert a["fill"] == b["fill"] == "gradient_h"
-    assert a["fill_colors"] == [working, faded] and b["fill_colors"] == [faded, working]
+    frames = [render(ss, cfg, shimmer_phase=p)["10"] for p in range(5)]
+    assert {f["fill"] for f in frames} == {"gradient_h"}
+    assert [f["fill_colors"] for f in frames] == [
+        [working, faded],
+        [even, even],
+        [faded, working],
+        [even, even],
+        [working, faded],  # phase wraps every four frames
+    ]
     assert shimmering(ss, cfg)
 
 
