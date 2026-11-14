@@ -70,7 +70,8 @@ v1 ships only a Claude Code adapter.
 - **Working:** green, with motion. The session's bar goes dark except for
   its two outer columns (end caps) and a 5 px segment that bounces between
   them over four stops in six frames (1-2-3-4-3-2, touching a cap at either
-  end), one frame every `shimmer_step_s` (1 s), so a full bounce takes 6 s. A working agent's 2×2
+  end; steps of 4, 3 and 4 px, so the two middle stops overlap on the bar's
+  centre columns 8–9), one frame every `shimmer_step_s` (1 s), so a full bounce takes 6 s. A working agent's 2×2
   square is dim with one bright pixel stepping clockwise on the same frame
   clock (four frames per turn).
   That's about one draw a second. An earlier two-colour gradient shimmer

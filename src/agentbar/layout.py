@@ -147,7 +147,9 @@ def bar_elements(s: Session, cfg: LayoutConfig, slot: int, x: int, blink_on: boo
     # (1-2-3-4-3-2), touching a cap at either end.
     left, right = 1, w - 1 - cfg.shimmer_width
     stop = (0, 1, 2, 3, 2, 1)[phase % 6]
-    pos = left + stop * (right - left) // 3
+    # Rounding keeps the stops mirror-symmetric, so any uneven step lands in the middle:
+    # on an 18 px tile, steps 4-3-4 and the middle stops share the bar's centre columns.
+    pos = left + round(stop * (right - left) / 3)
     ids = [element_id(slot, o) for o in (CAP_LEFT, CAP_RIGHT, SEGMENT)]
     return {
         bar_id: rectangle(bar_id, x, y, w, h, [OFF, OFF], "gradient_h"),

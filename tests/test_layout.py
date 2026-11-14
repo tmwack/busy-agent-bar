@@ -171,7 +171,7 @@ def test_working_bar_bounces_between_end_caps():
         assert (f["102"]["x"], f["103"]["x"], f["102"]["width"]) == (16, 33, 1)  # caps on the outer columns
         assert f["102"]["fill_colors"] == f["104"]["fill_colors"] == [working]
     # Segment: four stops, bouncing 1-2-3-4-3-2, then wraps; it touches a cap at either end.
-    assert [f["104"]["x"] - 16 for f in frames] == [1, 4, 8, 12, 8, 4, 1]
+    assert [f["104"]["x"] - 16 for f in frames] == [1, 5, 8, 12, 8, 5, 1]  # steps 4-3-4, symmetric
     assert frames[3]["104"]["x"] + cfg.shimmer_width == frames[3]["103"]["x"]
     assert frames[0]["104"]["width"] == cfg.shimmer_width
     assert shimmering(ss, cfg)
