@@ -72,7 +72,7 @@ leaving one blank row above the squares instead of three.
 | State | Colour | Behaviour |
 | --- | --- | --- |
 | needs input | amber | blinks (bright/dim, 1 Hz) |
-| working | green | the bar shimmers: its light slides end to end and back over 8 s |
+| working | green | a segment bounces between the bar's end caps (every 4 s); working agents' squares spin a bright pixel clockwise |
 | done | cyan | becomes idle after 1 hour |
 | idle | steel-blue label, dim steel-blue bar | |
 
@@ -112,8 +112,9 @@ agent_size = 2              # subagent squares, on top of the bar
 agent_gap = 1
 show_idle = true
 dim_factor = 0.2            # blink "off" brightness for needs input
-shimmer = true              # working bars shimmer
-shimmer_factor = 0.6        # dim end of the shimmer gradient
+shimmer = true              # animate working sessions and agents
+shimmer_width = 4           # width of the bouncing segment
+shimmer_factor = 0.6        # brightness of a working agent's square behind its pixel
 
 [layout.colors]
 working = "#00C850"
@@ -128,7 +129,7 @@ idle = "#6090A8"
 done_decay_s = 3600
 session_ttl_s = 7200        # only for sessions whose process couldn't be found
 blink_period_s = 1.0
-shimmer_step_s = 2.0        # seconds per shimmer frame (4 frames per cycle)
+shimmer_step_s = 1.0        # seconds per animation frame (4 frames per bounce)
 busy_retry_s = 5.0
 refresh_s = 60.0
 ```

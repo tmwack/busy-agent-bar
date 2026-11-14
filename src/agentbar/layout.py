@@ -5,9 +5,10 @@ the display is left to other applications. Each tile is a short label
 (initials of the session name) above a row of small squares, one per running
 subagent in that agent's state colour, above a thin bar in the session's own
 state colour. The label takes the colour of the most active state of the
-session and its agents. A WORKING bar shimmers: shimmer_phase steps it through
-four frames (bright left, even, bright right, even), so the light slides from
-one end to the other and back.
+session and its agents. While a session works, its bar goes dark between two lit
+end caps and a segment bounces between them; a working agent's square is dim
+with one bright quarter stepping clockwise. shimmer_phase steps both through
+four frames.
 """
 
 from __future__ import annotations
@@ -78,19 +79,25 @@ def dim(color: str, factor: float) -> str:
     return "#" + "".join(f"{round(v * factor):02X}" for v in rgb)
 
 
+# Element ids double as z-order on the device (higher on top). Each tile has a block of
+# 100: +0 bar, +1 label, +2/+3 end caps and +4 the moving segment while it works,
+# +10.. agent squares, +20.. the bright pixel on each working agent's square.
+CAP_LEFT, CAP_RIGHT, SEGMENT, AGENT, AGENT_PIXEL = 2, 3, 4, 10, 20
+OFF = "#000000"
+
+
 def element_ids(slot: int) -> tuple[str, str]:
-    # Element ids double as z-order on the device (higher on top).
-    base = 10 * (slot + 1)
+    base = 100 * (slot + 1)
     return str(base), str(base + 1)
 
 
-def agent_ids(slot: int, n: int) -> list[str]:
-    return [str(10 * (slot + 1) + 2 + i) for i in range(n)]
+def element_id(slot: int, offset: int) -> str:
+    return str(100 * (slot + 1) + offset)
 
 
 def max_agents(cfg: LayoutConfig) -> int:
-    # At most 8, so square ids (+2..+9) stay inside the tile's block of 10.
-    return min((cfg.tile_width + cfg.agent_gap) // (cfg.agent_size + cfg.agent_gap), 8)
+    # At most 10, so square ids (+10..+19) stay below the pixel ids (+20..).
+    return min((cfg.tile_width + cfg.agent_gap) // (cfg.agent_size + cfg.agent_gap), 10)
 
 
 def shown_agents(s: Session, cfg: LayoutConfig) -> list[Agent]:
@@ -121,23 +128,54 @@ def rectangle(element_id: str, x: int, y: int, width: int, height: int, colors: 
     }
 
 
-def bar_fill(s: Session, cfg: LayoutConfig, blink_on: bool, shimmer_phase: int) -> tuple[str, list[str]]:
-    """Bars are always a horizontal gradient; a solid bar is one colour to itself.
+def bar_elements(s: Session, cfg: LayoutConfig, slot: int, x: int, blink_on: bool, phase: int) -> dict[str, dict]:
+    """The session's bar; while it works, end caps and a segment bouncing between them.
 
-    Re-posting an element id updates the widget in place, and the firmware's solid
-    fill (rectangle_widget_set_background in applications/services/canvas/widgets/
-    rectangle.c) never resets the gradient a shimmer set. A "solid" bar after a
-    shimmer would keep fading to the old colour at its right end.
+    Bars are always a horizontal gradient; a solid bar is one colour to itself.
+    Re-posting an element id updates the widget in place, and the firmware's solid fill
+    (rectangle_widget_set_background in applications/services/canvas/widgets/
+    rectangle.c) never resets an earlier gradient, so a bar that was ever a gradient
+    must stay one.
     """
+    y = FRONT_HEIGHT - cfg.bar_height
+    w, h = cfg.tile_width, cfg.bar_height
     color = state_color(s.state, cfg, blink_on)
+    bar_id = element_id(slot, 0)
     if not (cfg.shimmer and s.state is AgentState.WORKING):
-        return "gradient_h", [color, color]
-    faded = dim(color, cfg.shimmer_factor)
-    # The even frames sit halfway in sent value, which after the LEDs' gamma 2.8 gives
-    # about the same total light as the sloped frames, so the bar doesn't pulse.
-    even = dim(color, (1 + cfg.shimmer_factor) / 2)
-    frames = ([color, faded], [even, even], [faded, color], [even, even])
-    return "gradient_h", frames[shimmer_phase % 4]
+        return {bar_id: rectangle(bar_id, x, y, w, h, [color, color], "gradient_h")}
+    # Caps on the outer columns, a 1 px gap inside each, and the segment stepping
+    # left, centre, right, centre.
+    left, right = 2, w - 2 - cfg.shimmer_width
+    pos = (left, (left + right) // 2, right, (left + right) // 2)[phase % 4]
+    ids = [element_id(slot, o) for o in (CAP_LEFT, CAP_RIGHT, SEGMENT)]
+    return {
+        bar_id: rectangle(bar_id, x, y, w, h, [OFF, OFF], "gradient_h"),
+        ids[0]: rectangle(ids[0], x, y, 1, h, [color]),
+        ids[1]: rectangle(ids[1], x + w - 1, y, 1, h, [color]),
+        ids[2]: rectangle(ids[2], x + pos, y, cfg.shimmer_width, h, [color]),
+    }
+
+
+def agent_elements(
+    agents: list[Agent], cfg: LayoutConfig, slot: int, x: int, blink_on: bool, phase: int
+) -> dict[str, dict]:
+    """One square per agent. A working agent's square is dim with one bright quarter
+    stepping clockwise; other states are solid (needs input blinks)."""
+    size, y = cfg.agent_size, FRONT_HEIGHT - cfg.bar_height - cfg.agent_size
+    q = max(size // 2, 1)
+    dx, dy = ((0, 0), (q, 0), (q, q), (0, q))[phase % 4]  # clockwise from top left
+    out: dict[str, dict] = {}
+    for i, agent in enumerate(agents):
+        ax = x + i * (size + cfg.agent_gap)
+        color = state_color(agent.state, cfg, blink_on)
+        square_id = element_id(slot, AGENT + i)
+        if not (cfg.shimmer and agent.state is AgentState.WORKING):
+            out[square_id] = rectangle(square_id, ax, y, size, size, [color])
+            continue
+        pixel_id = element_id(slot, AGENT_PIXEL + i)
+        out[square_id] = rectangle(square_id, ax, y, size, size, [dim(color, cfg.shimmer_factor)])
+        out[pixel_id] = rectangle(pixel_id, ax + dx, y + dy, q, q, [color])
+    return out
 
 
 def render(
@@ -148,19 +186,9 @@ def render(
     out: dict[str, dict] = {}
     for slot, (s, label) in enumerate(zip(shown, labels(shown, cfg.name_chars), strict=True)):
         x = x0 + slot * (cfg.tile_width + cfg.gap)
-        bar_id, text_id = element_ids(slot)
-        fill, colors = bar_fill(s, cfg, blink_on, shimmer_phase)
-        out[bar_id] = rectangle(bar_id, x, FRONT_HEIGHT - cfg.bar_height, cfg.tile_width, cfg.bar_height, colors, fill)
-        agents = shown_agents(s, cfg)
-        for i, (agent, agent_id) in enumerate(zip(agents, agent_ids(slot, len(agents)), strict=True)):
-            out[agent_id] = rectangle(
-                agent_id,
-                x + i * (cfg.agent_size + cfg.agent_gap),
-                FRONT_HEIGHT - cfg.bar_height - cfg.agent_size,
-                cfg.agent_size,
-                cfg.agent_size,
-                [state_color(agent.state, cfg, blink_on)],
-            )
+        _, text_id = element_ids(slot)
+        out.update(bar_elements(s, cfg, slot, x, blink_on, shimmer_phase))
+        out.update(agent_elements(shown_agents(s, cfg), cfg, slot, x, blink_on, shimmer_phase))
         out[text_id] = {
             "id": text_id,
             "type": "text",
@@ -180,4 +208,8 @@ def blinking(sessions: list[Session], cfg: LayoutConfig) -> bool:
 
 
 def shimmering(sessions: list[Session], cfg: LayoutConfig) -> bool:
-    return cfg.shimmer and any(s.state is AgentState.WORKING for s in select(sessions, cfg))
+    """True if a shown session or a shown agent is working, so frames must advance."""
+    return cfg.shimmer and any(
+        s.state is AgentState.WORKING or any(a.state is AgentState.WORKING for a in shown_agents(s, cfg))
+        for s in select(sessions, cfg)
+    )

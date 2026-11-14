@@ -66,13 +66,14 @@ v1 ships only a Claude Code adapter.
     ([Okabe & Ito](https://jfly.uni-koeln.de/color/), 2002, revised 2008).
     Each state now also has a non-colour cue:
 - **Needs input:** amber plus blinking.
-- **Working:** green with a shimmering bar. The bar is a two-colour
-  horizontal gradient (`gradient_h`) stepped through four frames, one every
-  `shimmer_step_s` (2 s): bright left, even, bright right, even. The light
-  slides end to end and back over 8 s, about one extra draw every 2 s. The
-  even frames use the midpoint sent value, which carries about the same
-  light as the sloped frames after gamma 2.8, so the bar doesn't pulse. Only the session's
-  own bar shimmers; labels and agent squares stay solid.
+- **Working:** green, with motion. The session's bar goes dark except for
+  its two outer columns (end caps) and a 4 px segment that steps left,
+  centre, right, centre between them, one frame every `shimmer_step_s`
+  (1 s), so it bounces end to end and back every 4 s. A working agent's 2×2
+  square is dim with one bright pixel stepping clockwise on the same frames.
+  That's about one draw a second. An earlier two-colour gradient shimmer
+  (2026-11-14) didn't read as motion on the 2 px bar, so it was replaced.
+  Labels stay still.
 - **Done:** stays still.
 - **Idle:** steel-blue label over a dim steel-blue bar, so idle tiles read
   as parked but the label stays legible.
@@ -91,7 +92,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/adapters/` | Per-harness `normalize(payload, ts, pid) -> AgentEvent`. Register new ones in `__init__.py`. |
 | `src/agentbar/model.py` | `AgentState` (its int value is tile priority), `AgentEvent`, `Session`, `Agent` (a subagent inside a session). `Session.top_state` is the most active state of the session and its agents. |
 | `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). Events with an `agent_id` change that agent only, never the session's state. |
-| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `10*(slot+1)` (bar), `+1` (text) and `+2`… (agent squares). |
+| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `100*(slot+1)` plus an offset: `+0` bar, `+1` label, `+2`/`+3` end caps and `+4` bouncing segment while working, `+10`… agent squares, `+20`… each working agent's bright pixel. |
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking; also wakes on each shimmer frame). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
@@ -220,9 +221,9 @@ saw, so a `/rename` shows on the tile after the next prompt.
    and internal agents don't fire `SubagentStart` (no stray squares).
 6. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
    `pid` column in `agentbar status`.
-7. How the firmware draws `gradient_h` on the 2 px bar, given gamma 2.8:
-   the shimmer should read as light moving, not a jump.
-8. Whether a green 2×2 agent square is visible, and whether the shimmer flip
+7. Whether the bouncing segment reads as motion at 1 s per frame, and the
+   bars stay one even colour after it stops (the `gradient_h` workaround).
+8. Whether a green 2×2 agent square is visible, and whether the bounce or the spinning pixel
    ghosts or flickers.
 9. Whether an idle steel-blue tile is clearly distinct from a done tile next to
    it.

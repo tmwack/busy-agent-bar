@@ -54,8 +54,9 @@ class LayoutConfig:
     agent_gap: int = 1
     show_idle: bool = True
     dim_factor: float = 0.2  # blink "off" brightness for NEEDS_INPUT
-    shimmer: bool = True  # WORKING bars flip a two-colour gradient
-    shimmer_factor: float = 0.6  # dim end of the shimmer gradient (about 24% of the light)
+    shimmer: bool = True  # animate WORKING: a bouncing segment on the bar, a spinning pixel on agent squares
+    shimmer_width: int = 4  # width of the bouncing segment
+    shimmer_factor: float = 0.6  # brightness of a working agent's square behind its bright pixel
     colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_COLORS))
     text_colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_TEXT_COLORS))
 
@@ -65,7 +66,7 @@ class TimingConfig:
     done_decay_s: float = 3600  # DONE -> IDLE; an hour, so a finished session is still green after a meeting
     session_ttl_s: float = 7200  # expiry for sessions with no known PID
     blink_period_s: float = 1.0
-    shimmer_step_s: float = 2.0  # seconds per shimmer frame; four frames per back-and-forth
+    shimmer_step_s: float = 1.0  # seconds per shimmer frame; four frames per bounce
     busy_retry_s: float = 5.0  # retry interval while yielding / bar unreachable
     refresh_s: float = 60.0  # periodic full redraw to self-heal
 
