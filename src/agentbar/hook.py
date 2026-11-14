@@ -5,8 +5,9 @@ Unix socket. Runs once per hook event (including every tool call), so it is
 stdlib-only, prints nothing, and always exits 0 - a missing daemon must never
 slow down or break the harness.
 
-Harness-agnostic: it forwards top-level scalar fields only and leaves all
-interpretation to the adapter inside the daemon.
+Harness-agnostic: it forwards top-level scalar fields, plus the length of
+each top-level list as `<key>_len`, and leaves all interpretation to the
+adapter inside the daemon.
 """
 
 from __future__ import annotations
@@ -26,13 +27,16 @@ SHELLS = {"sh", "bash", "zsh", "dash", "fish", "ksh"}
 
 
 def scalars(payload: dict) -> dict:
-    """Keep top-level scalars only. Drops bulky fields such as tool_input."""
+    """Keep top-level scalars, and replace lists by their length (`<key>_len`).
+    Drops bulky fields such as tool_input."""
     out: dict = {}
     for key, value in payload.items():
         if isinstance(value, str):
             out[key] = value[:MAX_STR]
         elif value is None or isinstance(value, (bool, int, float)):
             out[key] = value
+        elif isinstance(value, list):
+            out[f"{key}_len"] = len(value)
     return out
 
 

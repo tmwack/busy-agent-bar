@@ -6,7 +6,7 @@ import logging
 import os
 from collections.abc import Callable
 
-from .model import AgentEvent, AgentState, EventKind, Session
+from .model import Agent, AgentEvent, AgentState, EventKind, Session
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class Registry:
     def apply(self, ev: AgentEvent) -> bool:
         """Apply one event. Returns True if anything visible changed."""
         key = (ev.source, ev.session_id)
-        if ev.kind is EventKind.END:
+        if ev.kind is EventKind.END and ev.agent_id is None:
             gone = self._sessions.pop(key, None) is not None
             if gone:
                 log.info("session end %s", ev.session_id)
@@ -64,6 +64,12 @@ class Registry:
             changed = True
         if ev.pid:
             session.pid = ev.pid
+        if ev.agent_id is not None:
+            return self._apply_agent(session, ev) or changed
+        if ev.agents_idle and session.agents:
+            log.info("session %s: nothing in flight, clearing %d agent(s)", ev.session_id, len(session.agents))
+            session.agents.clear()
+            changed = True
 
         # Hooks for parallel tool calls can arrive slightly out of order;
         # never let an older state event overwrite a newer one.
@@ -76,6 +82,31 @@ class Registry:
                 session.state_since = ev.ts
                 changed = True
         return changed
+
+    def _apply_agent(self, session: Session, ev: AgentEvent) -> bool:
+        """Events from a subagent change that agent, never the session's own state."""
+        if ev.kind is EventKind.END:
+            gone = session.agents.pop(ev.agent_id, None) is not None
+            if gone:
+                log.info("session %s agent %s end", session.session_id, ev.agent_id)
+            return gone
+        if ev.kind is not EventKind.STATE or ev.state is None:
+            return False
+        agent = session.agents.get(ev.agent_id)
+        if agent is None:
+            # Usually SubagentStart; also covers a missed start or a daemon restart.
+            agent = Agent(ev.agent_id, first_seen=ev.ts, state=ev.state, last_state_ts=ev.ts, agent_type=ev.agent_type)
+            session.agents[ev.agent_id] = agent
+            log.info("session %s agent %s (%s) %s", session.session_id, ev.agent_id, ev.agent_type, ev.state.name)
+            return True
+        if ev.ts < agent.last_state_ts:
+            return False
+        agent.last_state_ts = ev.ts
+        if ev.state is agent.state:
+            return False
+        log.info("session %s agent %s %s -> %s", session.session_id, ev.agent_id, agent.state.name, ev.state.name)
+        agent.state = ev.state
+        return True
 
     def tick(self, now: float) -> bool:
         """Time-based transitions. Returns True if anything visible changed."""

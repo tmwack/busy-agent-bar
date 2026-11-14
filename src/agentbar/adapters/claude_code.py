@@ -12,7 +12,13 @@ State mapping:
   Notification (other, incl. idle_prompt) -> no change
   Stop                                    -> DONE
   SessionEnd                              -> session removed
-  anything else (PreCompact, SubagentStop) -> no change
+  SubagentStart                           -> agent WORKING
+  SubagentStop                            -> agent removed
+  anything else (PreCompact, ...)         -> no change
+
+Hooks fired inside a subagent carry agent_id; the registry applies their state
+to that agent instead of the session. Stop with no background tasks in flight
+clears any agents left over from a missed SubagentStop.
 
 session_title (SessionStart and UserPromptSubmit, named sessions only) becomes
 the session's title, which the tile label prefers over the cwd.
@@ -50,6 +56,8 @@ def normalize(payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
         cwd=payload.get("cwd"),
         title=payload.get("session_title"),  # only set for named sessions (--name, /rename)
         pid=pid,
+        agent_id=payload.get("agent_id") or None,
+        agent_type=payload.get("agent_type") or None,
     )
 
     def state(s: AgentState, detail: str | None = None) -> AgentEvent:
@@ -76,7 +84,17 @@ def normalize(payload: dict, ts: float, pid: int | None) -> AgentEvent | None:
             else touch
         )
     if name == "Stop":
-        return state(AgentState.DONE)
+        # background_tasks_len is absent on older versions: unknown, keep agents.
+        return AgentEvent(
+            kind=EventKind.STATE,
+            state=AgentState.DONE,
+            agents_idle=payload.get("background_tasks_len") == 0,
+            **common,
+        )
     if name == "SessionEnd":
+        return AgentEvent(kind=EventKind.END, **common)
+    if name == "SubagentStart" and common["agent_id"]:
+        return state(AgentState.WORKING)
+    if name == "SubagentStop" and common["agent_id"]:
         return AgentEvent(kind=EventKind.END, **common)
     return touch

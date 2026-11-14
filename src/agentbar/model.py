@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 class AgentState(enum.IntEnum):
@@ -33,6 +33,20 @@ class AgentEvent:
     title: str | None = None  # user-set session name, if the harness reports one
     pid: int | None = None  # harness process, for liveness checks
     detail: str | None = None  # e.g. tool name
+    agent_id: str | None = None  # set when the event comes from a subagent of the session
+    agent_type: str | None = None
+    agents_idle: bool = False  # harness reports no subagents or background work in flight
+
+
+@dataclass
+class Agent:
+    """A subagent running inside a session (shown as a square on its tile)."""
+
+    agent_id: str
+    first_seen: float
+    state: AgentState = AgentState.WORKING
+    last_state_ts: float = 0.0
+    agent_type: str | None = None
 
 
 @dataclass
@@ -48,3 +62,9 @@ class Session:
     title: str | None = None
     pid: int | None = None
     detail: str | None = None
+    agents: dict[str, Agent] = field(default_factory=dict)
+
+    @property
+    def top_state(self) -> AgentState:
+        """Most active state across the session and its agents."""
+        return max([self.state, *(a.state for a in self.agents.values())])

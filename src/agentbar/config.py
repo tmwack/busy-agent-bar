@@ -46,6 +46,8 @@ class LayoutConfig:
     font: str = "small"
     text_y: int = 1
     bar_height: int = 2
+    agent_size: int = 2  # subagent squares, sitting on top of the bar
+    agent_gap: int = 1
     show_idle: bool = True
     dim_factor: float = 0.2  # blink "off" brightness for NEEDS_INPUT
     colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_COLORS))

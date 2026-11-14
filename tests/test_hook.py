@@ -57,3 +57,8 @@ def test_first_non_shell_skips_shells():
     assert hook.first_non_shell(table, 800) == 700
     assert hook.first_non_shell(table, 700) == 700
     assert hook.first_non_shell(table, 12345) is None
+
+
+def test_scalars_forwards_list_lengths():
+    out = hook.scalars({"background_tasks": [{"id": "t1"}, {"id": "t2"}], "session_crons": []})
+    assert out == {"background_tasks_len": 2, "session_crons_len": 0}

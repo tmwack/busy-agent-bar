@@ -76,6 +76,10 @@ class Daemon:
                     "state_since": s.state_since,
                     "pid": s.pid,
                     "detail": s.detail,
+                    "agents": [
+                        {"agent_id": a.agent_id, "agent_type": a.agent_type, "state": a.state.name}
+                        for a in s.agents.values()
+                    ],
                 }
                 for s in self.registry.sessions()
             ],

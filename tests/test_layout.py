@@ -1,8 +1,9 @@
 import pytest
+from busylib.types import DisplayElements
 
 from agentbar.config import LayoutConfig
-from agentbar.layout import blinking, dim, initials, labels, region_x, render, select
-from agentbar.model import AgentState, Session
+from agentbar.layout import blinking, dim, initials, labels, max_agents, region_x, render, select, shown_agents
+from agentbar.model import Agent, AgentState, Session
 
 
 def s(sid, cwd, state=AgentState.WORKING, first=0.0):
@@ -85,3 +86,63 @@ def test_idle_label_brighter_than_bar():
 def test_hide_idle():
     ss = [s("a", "/a", AgentState.IDLE)]
     assert render(ss, LayoutConfig(show_idle=False)) == {}
+    with_agents(ss[0], AgentState.WORKING)  # an idle session with a working agent stays visible
+    assert "11" in render(ss, LayoutConfig(show_idle=False))
+
+
+def with_agents(sess, *states):
+    for i, state in enumerate(states):
+        sess.agents[f"a{i}"] = Agent(f"a{i}", first_seen=float(i), state=state)
+    return sess
+
+
+def test_agent_squares_sit_on_the_bar():
+    cfg = LayoutConfig()
+    out = render([with_agents(s("a", "/a", AgentState.DONE), AgentState.WORKING, AgentState.WORKING)], cfg)
+    squares = [out["12"], out["13"]]
+    assert [(e["x"], e["y"], e["width"], e["height"]) for e in squares] == [(16, 12, 2, 2), (19, 12, 2, 2)]
+    assert out["10"]["y"] == 14  # squares end where the bar starts
+    assert "14" not in out
+
+
+def test_bar_is_session_label_is_most_active():
+    cfg = LayoutConfig()
+    out = render([with_agents(s("a", "/a", AgentState.DONE), AgentState.WORKING)], cfg)
+    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.DONE]]
+    assert out["11"]["color"] == cfg.colors[AgentState.WORKING]
+    out = render([with_agents(s("a", "/a", AgentState.WORKING), AgentState.NEEDS_INPUT)], cfg)
+    assert out["10"]["fill_colors"] == [cfg.colors[AgentState.WORKING]]
+    assert out["11"]["color"] == cfg.colors[AgentState.NEEDS_INPUT]
+    assert out["12"]["fill_colors"] == [cfg.colors[AgentState.NEEDS_INPUT]]
+
+
+def test_each_element_blinks_on_its_own_state():
+    cfg = LayoutConfig()
+    ss = [with_agents(s("a", "/a", AgentState.WORKING), AgentState.WORKING, AgentState.NEEDS_INPUT)]
+    on, off = render(ss, cfg, blink_on=True), render(ss, cfg, blink_on=False)
+    assert blinking(ss, cfg)
+    assert off["10"] == on["10"] and off["12"] == on["12"]
+    assert off["13"]["fill_colors"] == [dim(cfg.colors[AgentState.NEEDS_INPUT], cfg.dim_factor)]
+    assert off["11"]["color"] == dim(cfg.colors[AgentState.NEEDS_INPUT], cfg.dim_factor)
+
+
+def test_too_many_agents_keeps_most_active_in_order():
+    cfg = LayoutConfig()
+    assert max_agents(cfg) == 6
+    states = [AgentState.WORKING] * 6 + [AgentState.NEEDS_INPUT]
+    shown = shown_agents(with_agents(s("a", "/a"), *states), cfg)
+    assert [a.agent_id for a in shown] == ["a0", "a1", "a2", "a3", "a4", "a6"]  # a5 is the newest WORKING one
+
+
+def test_overflow_ranks_by_most_active_state():
+    ss = [
+        s("a", "/a", AgentState.WORKING, 1),
+        with_agents(s("b", "/b", AgentState.DONE, 2), AgentState.NEEDS_INPUT),
+        s("c", "/c", AgentState.WORKING, 3),
+    ]
+    assert [x.session_id for x in select(ss, LayoutConfig(max_tiles=2))] == ["a", "b"]
+
+
+def test_agent_squares_validate_against_busylib():
+    elements = render([with_agents(s("a", "/a", AgentState.DONE), AgentState.WORKING)], LayoutConfig())
+    DisplayElements.model_validate({"application_name": "agentbar", "elements": list(elements.values())})

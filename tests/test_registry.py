@@ -54,3 +54,45 @@ def test_long_working_with_pid_not_expired():
     r.apply(st(AgentState.WORKING, 1, pid=7))
     r.tick(10_000)
     assert r.sessions()[0].state is AgentState.WORKING
+
+
+def ag(state, ts, agent_id="a1", kind=EventKind.STATE):
+    return AgentEvent("cc", "s1", kind, ts, state=state, agent_id=agent_id, agent_type="Explore")
+
+
+def test_agent_events_leave_session_state_alone():
+    r = Registry(300, 7200)
+    r.apply(st(AgentState.DONE, 1))
+    assert r.apply(ag(AgentState.WORKING, 2))  # SubagentStart / background tool call
+    s = r.sessions()[0]
+    assert s.state is AgentState.DONE
+    assert s.agents["a1"].state is AgentState.WORKING and s.agents["a1"].agent_type == "Explore"
+    assert s.top_state is AgentState.WORKING
+
+
+def test_agent_lifecycle_and_unknown_stop():
+    r = Registry(300, 7200)
+    r.apply(st(AgentState.WORKING, 1))
+    r.apply(ag(AgentState.WORKING, 2))
+    assert not r.apply(ag(AgentState.WORKING, 3))
+    assert r.apply(ag(AgentState.NEEDS_INPUT, 4))
+    assert r.apply(ag(None, 5, kind=EventKind.END))
+    assert not r.apply(ag(None, 6, agent_id="internal", kind=EventKind.END))
+    s = r.sessions()[0]  # an agent END never ends the session
+    assert s.agents == {} and s.state is AgentState.WORKING
+
+
+def test_agent_out_of_order_state_ignored():
+    r = Registry(300, 7200)
+    r.apply(ag(AgentState.NEEDS_INPUT, 10))
+    assert not r.apply(ag(AgentState.WORKING, 9))
+    assert r.sessions()[0].agents["a1"].state is AgentState.NEEDS_INPUT
+
+
+def test_stop_with_nothing_in_flight_clears_agents():
+    r = Registry(300, 7200)
+    r.apply(ag(AgentState.WORKING, 1))
+    r.apply(st(AgentState.DONE, 2))
+    assert r.sessions()[0].agents  # Stop without background info keeps them
+    assert r.apply(AgentEvent("cc", "s1", EventKind.STATE, 3, state=AgentState.DONE, agents_idle=True))
+    assert r.sessions()[0].agents == {}

@@ -109,5 +109,12 @@ class LogSink:
         if desired == self._last:
             return
         self._last = desired
-        tiles = [{"text": e["text"], "color": e["color"], "x": e["x"]} for e in desired.values() if e["type"] == "text"]
-        log.info("render %s", json.dumps(tiles))
+        # Element ids are 10*(slot+1): +0 bar, +1 label, +2.. agent squares.
+        tiles: dict[int, dict] = {}
+        for i, e in sorted(desired.items(), key=lambda kv: int(kv[0])):
+            tile = tiles.setdefault(int(i) // 10, {"agents": []})
+            if e["type"] == "text":
+                tile.update(text=e["text"], color=e["color"], x=e["x"])
+            elif int(i) % 10 >= 2:
+                tile["agents"].append(e["fill_colors"][0])
+        log.info("render %s", json.dumps(list(tiles.values())))

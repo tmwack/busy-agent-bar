@@ -12,6 +12,12 @@ v1 ships only a Claude Code adapter.
   still WIP). Not a bsbctl plugin (bsbctl is Go-only).
 - **Layout:** a region of side-by-side session tiles on the front display.
   The rest of the display stays free for other apps.
+- **Subagents:** each running subagent gets a 2×2 square sitting on top of
+  its session's bar (up to 6 per tile), coloured by that agent's state. The
+  bar keeps the main session's state. The label takes the most active state
+  of the session and its agents, so a done session with a working background
+  agent has an amber label over a green bar. A square disappears on
+  `SubagentStop`.
 - **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
   16 px for other apps. Rotating through sessions is deferred.
 - **Tile label:** 4 characters: initials of the session title (set with
@@ -35,11 +41,11 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 
 | File | Role |
 | --- | --- |
-| `src/agentbar/hook.py` | Forwarder run by every hook. Stdlib only, prints nothing, always exits 0. Sends top-level scalar fields only. `--resolve-pid` finds the harness PID (nearest non-shell ancestor, one `ps` call). |
+| `src/agentbar/hook.py` | Forwarder run by every hook. Stdlib only, prints nothing, always exits 0. Sends top-level scalar fields, plus each top-level list's length as `<key>_len`. `--resolve-pid` finds the harness PID (nearest non-shell ancestor, one `ps` call). |
 | `src/agentbar/adapters/` | Per-harness `normalize(payload, ts, pid) -> AgentEvent`. Register new ones in `__init__.py`. |
-| `src/agentbar/model.py` | `AgentState` (its int value is tile priority), `AgentEvent`, `Session`. |
-| `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). |
-| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `10*(slot+1)` (bar) and `+1` (text). |
+| `src/agentbar/model.py` | `AgentState` (its int value is tile priority), `AgentEvent`, `Session`, `Agent` (a subagent inside a session). `Session.top_state` is the most active state of the session and its agents. |
+| `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). Events with an `agent_id` change that agent only, never the session's state. |
+| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Element ids are `10*(slot+1)` (bar), `+1` (text) and `+2`… (agent squares). |
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
@@ -58,8 +64,16 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `PermissionRequest` | NEEDS_INPUT |
 | `Notification` (`permission_prompt`, `elicitation_dialog`) | NEEDS_INPUT |
 | `Notification` (`idle_prompt` and other types) | ignored on purpose |
-| `Stop` | DONE |
+| `Stop` | DONE; also clears agents when `background_tasks` is empty |
 | `SessionEnd` | session removed |
+| `SubagentStart` | agent added, WORKING |
+| `SubagentStop` | agent removed |
+
+Hooks fired inside a subagent carry `agent_id` and keep the mapping above,
+but change that agent's square instead of the session's state. Without this, a
+background agent's tool calls flipped a finished session back to WORKING.
+`SubagentStop` also fires for Claude Code's internal agents (prompt
+suggestions, `/btw`) with an empty `agent_id`; those are ignored.
 
 PIDs are only resolved on `SessionStart` and `UserPromptSubmit`, so the `ps`
 cost isn't paid on every tool call.
@@ -135,7 +149,9 @@ saw, so a `/rename` shows on the tile after the next prompt.
 3. Tiles hide during a BUSY session (409 path) and come back afterwards.
 4. Whether `Stop` fires on an Esc interrupt. If not, the tile stays WORKING
    until the next prompt.
-5. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
+5. Subagent `PermissionRequest` and `Notification` hooks carry `agent_id`,
+   and internal agents don't fire `SubagentStart` (no stray squares).
+6. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
    `pid` column in `agentbar status`.
 
 ## Known gaps / next ideas

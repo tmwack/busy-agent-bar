@@ -29,6 +29,8 @@ CLAUDE_EVENTS: dict[str, tuple[str | None, bool]] = {
     "Notification": (None, False),
     "Stop": (None, False),
     "SessionEnd": (None, False),
+    "SubagentStart": (None, False),
+    "SubagentStop": (None, False),
 }
 HOOK_TIMEOUT_S = 5
 

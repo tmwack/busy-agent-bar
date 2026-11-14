@@ -11,6 +11,7 @@ def test_merge_is_idempotent_and_preserves_other_hooks():
     twice = merge_hooks(once, Path("/bin/agentbar-hook"))
     assert once == twice
     assert set(CLAUDE_EVENTS) <= set(twice["hooks"])
+    assert {"SubagentStart", "SubagentStop"} <= set(twice["hooks"])
     assert twice["hooks"]["Stop"][0]["hooks"] == [OTHER]
     assert twice["model"] == "opus"
     pre = twice["hooks"]["PreToolUse"][0]

@@ -51,6 +51,8 @@ def _status(_: argparse.Namespace) -> int:
         if s.get("title"):
             where = f'"{s["title"]}" {where}'
         print(f"{s['state']:<12} {age:>5}s  {where}  ({s['source']} {s['session_id'][:8]} pid={s['pid']})")
+        for a in s.get("agents", []):
+            print(f"  └ {a['state']:<12} {a['agent_type'] or 'agent'} {a['agent_id'][:12]}")
     if not status["sessions"]:
         print("no sessions")
     return 0

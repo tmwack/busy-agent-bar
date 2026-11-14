@@ -36,8 +36,15 @@ agentbar run --dry-run -v
 The front display gets a fixed region of `max_tiles` tiles, right-aligned by
 default. The rest of the display is left to other applications. Each tile shows:
 
-- a 4-character label in the state colour;
-- a 2px bar in the state colour underneath.
+- a 4-character label;
+- a row of 2×2 squares, one per running subagent, in that agent's state colour
+  (up to 6);
+- a 2px bar in the session's state colour underneath, touching the squares.
+
+The label takes the most active state of the session and its subagents. A
+session that is done while a background agent works shows an amber label and
+square over a green bar. A subagent at a permission prompt turns its square
+and the label red and blinking, whatever the session itself is doing.
 
 The label is the initials of the session's name, set with `claude --name` or
 `/rename`. Unnamed sessions use the project folder (cwd basename) instead.
@@ -66,7 +73,8 @@ or more `m` or `w` is a pixel or two wider, and the bar clips it at the tile edg
 | idle | grey label, dark grey bar | |
 
 If there are more sessions than tiles, higher-priority states win a tile
-(needs input > working > done > idle). Tiles stay in first-seen order.
+(needs input > working > done > idle), counting each session's subagents.
+Tiles stay in first-seen order. Squares follow the same rule within a tile.
 
 While a native BUSY timer session is running, the bar refuses lower-priority
 drawings with `409`. The daemon then clears its tiles and retries every 5 s,
@@ -92,6 +100,8 @@ name_chars = 4              # label length
 font = "small"              # tiny, small, normal, condensed, bold, ...
 text_y = 1
 bar_height = 2
+agent_size = 2              # subagent squares, on top of the bar
+agent_gap = 1
 show_idle = true
 dim_factor = 0.2
 
@@ -120,6 +130,12 @@ See `src/agentbar/adapters/claude_code.py`. In short:
 - `PermissionRequest`, `AskUserQuestion`, `Notification` (permission prompt) → needs input
 - `Stop` → done
 - `SessionEnd` → removed
+- `SubagentStart` / `SubagentStop` → subagent square added / removed
+
+Hooks fired inside a subagent carry `agent_id`. They change that subagent's
+square, not the session, so a background agent doesn't flip a finished session
+back to working. A `Stop` with no background tasks in flight clears any
+leftover squares.
 
 `idle_prompt` notifications are ignored, so a finished session stays "done"
 instead of switching to "needs input".
