@@ -108,6 +108,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking; also wakes on each shimmer frame). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
+| `src/agentbar/demo.py` | Scripted demo scenes (`states`, `agents`) as timed steps of real `AgentEvent`s. `agentbar demo` asks the daemon to play them into a separate registry that it renders instead of the real one, then restores the real tiles (also on Ctrl-C). |
 | `src/agentbar/config.py` | Loads `~/.config/agentbar/config.toml` (all keys optional). Env overrides: `AGENTBAR_CONFIG`, `AGENTBAR_SOCKET`. |
 
 ## Claude Code state mapping
@@ -219,9 +220,11 @@ saw, so a `/rename` shows on the tile after the next prompt.
 
 ## Status
 
-- Never run on macOS or against a real bar.
-- Verified in a Linux container: 38 unit tests, and an end-to-end dry-run
-  (real hook payloads → daemon → `agentbar status`).
+- Runs on macOS against a real bar (since 2026-11-13), as the launchd agent,
+  with live Claude Code sessions. Behaviour on the device is checked with
+  `agentbar screen` captures.
+- 76 unit tests, plus end-to-end dry runs: real hook payloads → daemon →
+  `agentbar status`, and `agentbar demo`.
 - Rendered elements validate against `busylib.types.DisplayElements`.
 - Hook forwarder cost: about 31 ms per call in the container. Each tool call
   fires two hooks.
@@ -273,6 +276,8 @@ saw, so a `/rename` shows on the tile after the next prompt.
 uv tool install --editable .     # install
 agentbar install                 # hooks + launchd agent; --no-agent = hooks only
 agentbar status                  # tracked sessions, bar reachability
+agentbar screen --frames 4       # capture the bar's front display through the daemon
+agentbar demo                    # scripted demo; --scene states|agents, --loop
 agentbar run --dry-run -v        # foreground, no bar (stop the agent or set AGENTBAR_SOCKET)
 agentbar uninstall
 uv run pytest

@@ -31,6 +31,25 @@ Run without a bar (stop the agent first, or set `AGENTBAR_SOCKET` to another pat
 agentbar run --dry-run -v
 ```
 
+## Demo
+
+```sh
+agentbar demo                    # both scenes, about 32 s
+agentbar demo --scene agents     # one scene; repeat --scene to pick several
+agentbar demo --loop             # repeat until Ctrl-C
+agentbar screen --frames 4       # what the bar shows right now, captured 4 times
+```
+
+The demo plays scripted sessions through the running daemon, so it shows the
+real layout and animations. While it plays, your real sessions are hidden.
+They keep being tracked and come back as soon as the demo ends or you press
+Ctrl-C. The terminal prints a caption for each step.
+
+| Scene | About 16 s each |
+| --- | --- |
+| `states` | One session: working (bounce) → needs input (amber blink) → done (solid green) → idle (steel blue), then three sessions side by side |
+| `agents` | A session starts three subagents (spinning squares). One needs input, so its square and the label blink amber. The main turn finishes while the agents keep working, and each agent's square pulses as it finishes |
+
 ## Display
 
 The front display gets a fixed region of `max_tiles` tiles, right-aligned by

@@ -12,7 +12,7 @@ import socket
 import time
 from pathlib import Path
 
-from . import adapters, layout
+from . import adapters, demo, layout
 from .config import Config
 from .paths import socket_path
 from .registry import Registry
@@ -50,6 +50,7 @@ class Daemon:
             cfg.timing.done_decay_s, cfg.timing.session_ttl_s, agent_pulse_s=cfg.timing.agent_pulse_s
         )
         layout.region_x(cfg.layout)  # fail fast on a layout that does not fit
+        self._demo: Registry | None = None  # rendered instead of the real registry while a demo plays
         self._wake = asyncio.Event()
         self._stop = asyncio.Event()
 
@@ -73,8 +74,58 @@ class Daemon:
             await self.sink.reset()
             path.unlink(missing_ok=True)
 
+    async def _run_demo(self, msg: dict, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        """Play demo scenes in place of the real sessions, streaming captions to the client.
+
+        Real events keep updating self.registry meanwhile; its tiles come back when the
+        demo ends or the client disconnects (Ctrl-C).
+        """
+
+        def reply(obj: dict) -> None:
+            writer.write(json.dumps(obj).encode() + b"\n")
+
+        scenes = list(msg.get("scenes") or demo.SCENES)
+        unknown = [s for s in scenes if s not in demo.SCENES]
+        if self._demo is not None or unknown:
+            reply({"error": "a demo is already running" if self._demo is not None else f"unknown scene: {unknown[0]}"})
+            await writer.drain()
+            return
+        t = self.cfg.timing
+        self._demo = Registry(t.done_decay_s, t.session_ttl_s, is_alive=lambda _: True, agent_pulse_s=t.agent_pulse_s)
+        started = time.monotonic()
+
+        async def on_step(scene: str, step: demo.Step) -> None:
+            self._wake.set()
+            if step.caption:
+                reply({"t": round(time.monotonic() - started, 1), "scene": scene, "caption": step.caption})
+                await writer.drain()
+
+        player = asyncio.ensure_future(
+            demo.play(
+                self._demo,
+                scenes,
+                loop=bool(msg.get("loop")),
+                on_step=on_step,
+                time_scale=float(msg.get("time_scale") or 1.0),
+            )
+        )
+        client_gone = asyncio.ensure_future(reader.read())  # EOF once the client goes away
+        log.info("demo started: %s%s", ", ".join(scenes), " (loop)" if msg.get("loop") else "")
+        try:
+            await asyncio.wait({player, client_gone}, return_when=asyncio.FIRST_COMPLETED)
+            if player.done() and player.exception() is None:
+                reply({"done": True})
+                await writer.drain()
+        finally:
+            player.cancel()
+            client_gone.cancel()
+            self._demo = None
+            self._wake.set()
+            log.info("demo ended")
+
     def status(self) -> dict:
         return {
+            "demo": self._demo is not None,
             "blocked": self.sink.blocked,
             "reachable": self.sink.reachable,
             "sessions": [
@@ -105,6 +156,9 @@ class Daemon:
                 writer.write(json.dumps(self.status()).encode() + b"\n")
                 await writer.drain()
                 return
+            if msg.get("type") == "demo":
+                await self._run_demo(msg, reader, writer)
+                return
             if msg.get("type") == "screen":
                 rgb = await self.sink.screen()
                 reply = {"rgb": base64.b64encode(rgb).decode() if rgb else None}
@@ -119,7 +173,7 @@ class Daemon:
             )
             if ev is not None and self.registry.apply(ev):
                 self._wake.set()
-        except (TimeoutError, ValueError, TypeError, AttributeError) as exc:
+        except (TimeoutError, ValueError, TypeError, AttributeError, ConnectionError) as exc:
             log.debug("dropped message: %s", exc)
         finally:
             writer.close()
@@ -133,8 +187,10 @@ class Daemon:
         while not self._stop.is_set():
             self._wake.clear()
             now = time.time()
-            self.registry.tick(now)
-            sessions = self.registry.sessions()
+            self.registry.tick(now)  # real sessions keep updating while a demo plays
+            if self._demo is not None:
+                self._demo.tick(now)
+            sessions = (self._demo if self._demo is not None else self.registry).sessions()
             mono = time.monotonic()
             if mono >= next_refresh:
                 self.sink.invalidate()

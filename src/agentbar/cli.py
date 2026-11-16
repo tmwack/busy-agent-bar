@@ -1,4 +1,4 @@
-"""agentbar CLI: run | status | screen | install | uninstall."""
+"""agentbar CLI: run | status | screen | demo | install | uninstall."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import install
+from . import demo, install
 from .paths import socket_path
 
 
@@ -79,11 +79,48 @@ def _screen(args: argparse.Namespace) -> int:
     return 0
 
 
+def _demo(args: argparse.Namespace) -> int:
+    scenes = args.scene or list(demo.SCENES)
+    request = {"v": 1, "type": "demo", "scenes": scenes, "loop": args.loop}
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(str(socket_path()))
+    except OSError as exc:
+        print(f"daemon not reachable at {socket_path()}: {exc}", file=sys.stderr)
+        return 1
+    length = f"{demo.duration(scenes):.0f} s" + (", looping" if args.loop else "")
+    print(f"demo: {', '.join(scenes)} ({length}); Ctrl-C stops it and restores the bar")
+    scene = None
+    with sock:
+        sock.sendall(json.dumps(request).encode() + b"\n")
+        try:
+            for line in sock.makefile("rb"):
+                reply = json.loads(line)
+                if "error" in reply:
+                    print(f"demo: {reply['error']}", file=sys.stderr)
+                    return 1
+                if reply.get("done"):
+                    print("demo finished, bar restored")
+                    return 0
+                if reply["scene"] != scene:
+                    scene = reply["scene"]
+                    print(f"-- {scene}")
+                minutes, seconds = divmod(int(reply["t"]), 60)
+                print(f"[{minutes}:{seconds:02}] {reply['caption']}")
+        except KeyboardInterrupt:
+            print("\ndemo stopped, bar restored")
+            return 0
+    print("daemon closed the connection", file=sys.stderr)
+    return 1
+
+
 def _status(_: argparse.Namespace) -> int:
     status = _ask("status")
     if status is None:
         return 1
     print(f"bar: {'unreachable' if not status['reachable'] else 'yielding to BUSY' if status['blocked'] else 'ok'}")
+    if status.get("demo"):
+        print("demo: running (real sessions are hidden until it ends)")
     now = time.time()
     for s in status["sessions"]:
         age = int(now - s["state_since"])
@@ -133,6 +170,16 @@ def main(argv: list[str] | None = None) -> int:
     screen.add_argument("--frames", type=int, default=1, help="number of captures")
     screen.add_argument("--interval", type=float, default=1.0, help="seconds between captures")
     screen.set_defaults(fn=_screen)
+
+    play = sub.add_parser("demo", help="play a scripted demo on the bar; real sessions return afterwards")
+    play.add_argument(
+        "--scene",
+        action="append",
+        choices=list(demo.SCENES),
+        help="scene to play (repeatable; default: all, in order)",
+    )
+    play.add_argument("--loop", action="store_true", help="repeat until Ctrl-C")
+    play.set_defaults(fn=_demo)
 
     for name, fn, text in (
         ("install", _install, "add Claude Code hooks and the launchd agent"),
