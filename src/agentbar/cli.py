@@ -52,8 +52,8 @@ def pixel_symbol(r: int, g: int, b: int) -> str:
     """Rough colour of one framebuffer pixel, as a terminal block."""
     if max(r, g, b) < 24:
         return "⬛"
-    if r > 2 * b and g > 2 * b and r > 128:
-        return "🟨"  # amber
+    if r > 2 * b and g > 2 * b and r >= g:
+        return "🟨" if r > 128 else "🟫"  # amber; dim amber is the blink's off phase
     if g > 2 * r and g >= b:
         return "🟩" if g >= 150 else "🟢"  # green, dim green
     if b > r and b >= g:
