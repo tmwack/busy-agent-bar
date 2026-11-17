@@ -3,13 +3,36 @@
 Shows coding-agent session state on a BUSY Bar. v1 ships a Claude Code adapter;
 the core is harness-agnostic.
 
-```
-Claude Code hooks ──> agentbar-hook ──(unix socket)──> agentbar daemon ──(HTTP)──> BUSY Bar
-                      stdlib-only,                     adapter → registry
-                      always exit 0                    → layout → sink
-```
+![Demo](docs/demo.gif)
+
+## Features
+
+- **One tile per Claude Code session**, up to three, on the bar's front display.
+  The rest of the display stays free for other apps.
+- **Four states at a glance**, told apart by colour and motion, not colour
+  alone:
+  - needs input: amber, blinking
+  - working: green, a segment bouncing along the bar
+  - done: a solid, still green bar
+  - idle: dim steel blue
+- **Subagents** each get a small square on their session's tile. It spins
+  while the agent works, blinks amber when the agent needs you, and pulses
+  once when the agent finishes.
+- **Readable labels:** the initials of the session name (`claude --name` or
+  `/rename`), or of the project folder.
+- **Only sessions you're using:** a session appears after its first prompt.
+  Claude Code's spare background processes stay off the bar.
+- **Steps aside for the BUSY timer** and comes back when it ends.
+- **Hands-off:** runs as a launchd agent and adds Claude Code hooks without
+  touching your other hooks.
+- **`agentbar demo`** shows it all off; `agentbar screen` captures what the
+  bar is showing.
 
 ## Install (macOS)
+
+You need macOS, a BUSY Bar connected over USB (Wi-Fi works too, see
+[Config](#config)), [Claude Code](https://code.claude.com), and
+[uv](https://docs.astral.sh/uv/) with Python 3.11 or later.
 
 ```sh
 uv tool install /path/to/agentbar     # or: uv tool install --editable .
@@ -25,13 +48,20 @@ Logs: `~/Library/Logs/agentbar.log`.
 
 Remove everything: `agentbar uninstall`.
 
-Run without a bar (stop the agent first, or set `AGENTBAR_SOCKET` to another path):
-
-```sh
-agentbar run --dry-run -v
-```
-
 ## Demo
+
+The GIF at the top shows `agentbar demo` on a bar. The demo plays scripted
+sessions through the running daemon, so you see the real layout and
+animations, in two scenes of about 16 s each:
+
+| Scene | What it shows |
+| --- | --- |
+| `states` | One session goes through every state: working (bouncing segment) → needs input (amber blink) → done (solid green) → idle (steel blue). Then three sessions side by side |
+| `agents` | A session starts three subagents, each a spinning square. One needs input, so its square and the label blink amber. The main turn finishes while the agents keep working, and each agent's square pulses once as it finishes |
+
+While the demo plays, your real sessions are hidden. They keep being tracked
+and come back as soon as the demo ends or you press Ctrl-C. The terminal prints
+a caption for each step, so you can talk over it.
 
 ```sh
 agentbar demo                    # both scenes, about 32 s
@@ -40,17 +70,7 @@ agentbar demo --loop             # repeat until Ctrl-C
 agentbar screen --frames 4       # what the bar shows right now, captured 4 times
 ```
 
-The demo plays scripted sessions through the running daemon, so it shows the
-real layout and animations. While it plays, your real sessions are hidden.
-They keep being tracked and come back as soon as the demo ends or you press
-Ctrl-C. The terminal prints a caption for each step.
-
-| Scene | About 16 s each |
-| --- | --- |
-| `states` | One session: working (bounce) → needs input (amber blink) → done (solid green) → idle (steel blue), then three sessions side by side |
-| `agents` | A session starts three subagents (spinning squares). One needs input, so its square and the label blink amber. The main turn finishes while the agents keep working, and each agent's square pulses as it finishes |
-
-## Display
+## Reading the bar
 
 The front display gets a fixed region of `max_tiles` tiles, right-aligned by
 default. The rest of the display is left to other applications. Each tile shows:
@@ -158,7 +178,17 @@ busy_retry_s = 5.0
 refresh_s = 60.0
 ```
 
-## Claude Code state mapping
+## Development
+
+### How it works
+
+```
+Claude Code hooks ──> agentbar-hook ──(unix socket)──> agentbar daemon ──(HTTP)──> BUSY Bar
+                      stdlib-only,                     adapter → registry
+                      always exit 0                    → layout → sink
+```
+
+### Claude Code state mapping
 
 See `src/agentbar/adapters/claude_code.py`. In short:
 
@@ -185,7 +215,15 @@ Claude Code PID (nearest non-shell ancestor, found with one `ps` call). The
 daemon drops the session when that process exits. Long-running tools therefore
 don't expire.
 
-## Verify on the device
+### Running without a bar
+
+Stop the launchd agent first, or set `AGENTBAR_SOCKET` to another path:
+
+```sh
+agentbar run --dry-run -v
+```
+
+### Verify on the device
 
 These are assumptions the code makes that couldn't be checked without a bar:
 
@@ -196,7 +234,7 @@ These are assumptions the code makes that couldn't be checked without a bar:
 4. If `Stop` doesn't fire when you interrupt Claude with Esc, the tile stays
    "working" until the next prompt.
 
-## Adding a harness
+### Adding a harness
 
 1. Add `adapters/<name>.py` with `SOURCE` and
    `normalize(payload, ts, pid) -> AgentEvent | None`.
@@ -206,7 +244,7 @@ These are assumptions the code makes that couldn't be checked without a bar:
 
 The forwarder sends only top-level scalar fields of the hook payload.
 
-## Development
+### Tests and lint
 
 ```sh
 uv run pytest
