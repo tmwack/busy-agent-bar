@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from busylib import AsyncBusyBar
 from busylib.exceptions import BusyBarAPIError, BusyBarError
+from busylib.types import DisplayElements
 
 from . import layout
 from .config import BusyBarConfig
@@ -55,6 +56,23 @@ class BusyBarSink:
             log.warning("screen capture failed: %s", exc)
             return None
 
+    async def _draw(self, elements: list[dict]) -> None:
+        """POST elements. busylib's display_draw validates every element against its own
+        types and rejects the firmware's "xpmbitmap" (icons), so draws with bitmaps
+        validate the rest the same way and go through the raw api_request instead."""
+        request = {"application_name": self.cfg.application_name, "priority": self.cfg.priority}
+        bitmaps = [e for e in elements if e["type"] == "xpmbitmap"]
+        if not bitmaps:
+            await self.client.display_draw({**request, "elements": elements})
+            return
+        others = [e for e in elements if e["type"] != "xpmbitmap"]
+        if others:
+            payload = DisplayElements.model_validate({**request, "elements": others}).model_dump(exclude_none=True)
+        else:
+            payload = dict(request, elements=[])
+        payload["elements"] = [*payload["elements"], *bitmaps]
+        await self.client.api_request("POST", "/api/display/draw", json_payload=payload)
+
     async def apply(self, desired: dict[str, dict]) -> None:
         now = self._clock()
         if now < self._blocked_until:
@@ -70,9 +88,7 @@ class BusyBarSink:
                 for i in removed:
                     self._drawn.pop(i, None)
             if changed:
-                await self.client.display_draw(
-                    {"application_name": app, "priority": self.cfg.priority, "elements": changed}
-                )
+                await self._draw(changed)
                 self._drawn.update({e["id"]: e for e in changed})
             if self.blocked or not self.reachable:
                 log.info("drawing resumed")
@@ -128,6 +144,9 @@ class LogSink:
             offset = int(i) % 100
             if e["type"] == "text":
                 tile.update(text=e["text"], color=e["color"], x=e["x"])
+            elif e["type"] == "xpmbitmap":
+                rows = e["data"].splitlines()
+                tile.update(icon=rows[4:], color=rows[3].split()[-1], x=e["x"])
             elif offset == 0:
                 tile["bar"] = e["fill_colors"]
             elif offset == layout.SEGMENT:

@@ -55,6 +55,21 @@ def initials(name: str, n: int) -> str:
     return "".join(w[0] for w in WORD.findall(name))[:n].lower().ljust(n, "-")
 
 
+def icon_for(s: Session, cfg: LayoutConfig) -> tuple[str, ...] | None:
+    """The icon of the deepest configured project folder that holds the session's cwd."""
+    cwd = os.path.normpath(s.cwd) if s.cwd else None
+    if not cwd:
+        return None
+    matches = [p for p in cfg.icons if cwd == p or cwd.startswith(p.rstrip("/") + "/")]
+    return cfg.icons[max(matches, key=len)] if matches else None
+
+
+def xpm(rows: tuple[str, ...], color: str) -> str:
+    """XPM2 text for the bar's xpmbitmap element: "#" in color, "." transparent."""
+    header = f"! XPM2\n{len(rows[0])} {len(rows)} 2 1\n. c none\n# c {color}\n"
+    return header + "".join(row + "\n" for row in rows)
+
+
 def labels(sessions: list[Session], n: int) -> list[str]:
     """Initials of the session title, else the cwd basename; duplicates get a 1-based suffix digit."""
     bases = []
@@ -84,7 +99,8 @@ def dim(color: str, factor: float) -> str:
 # their position within each draw request, and we only send what changed. Offsets: +0 bar,
 # +1 label, +2/+3 end caps and +4 the moving segment while it works, +10.. agent squares,
 # +20.. the bright pixel on each working agent's square.
-CAP_LEFT, CAP_RIGHT, SEGMENT, AGENT, AGENT_PIXEL = 2, 3, 4, 10, 20
+CAP_LEFT, CAP_RIGHT, SEGMENT, ICON, AGENT, AGENT_PIXEL = 2, 3, 4, 5, 10, 20
+ICON_TOP, ICON_ROWS = 2, 8  # an icon stays in the label's rows, 2-9
 OFF = "#000000"
 
 
@@ -214,6 +230,22 @@ def render(
         _, text_id = element_ids(slot)
         out.update(bar_elements(s, cfg, slot, x, blink_on, shimmer_phase))
         out.update(agent_elements(shown_agents(s, cfg), cfg, slot, x, blink_on, shimmer_phase, now, pulse_s))
+        label_color = state_color(s.top_state, cfg, blink_on, text=True)
+        icon = icon_for(s, cfg)
+        if icon is not None:
+            # A separate id from the label: the firmware updates widgets in place, so an
+            # id should never change element type.
+            icon_id = element_id(slot, ICON)
+            out[icon_id] = {
+                "id": icon_id,
+                "z_index": int(icon_id),
+                "type": "xpmbitmap",
+                "display": "front",
+                "x": x + (cfg.tile_width - len(icon[0])) // 2,
+                "y": ICON_TOP + (ICON_ROWS - len(icon)) // 2,
+                "data": xpm(icon, label_color),
+            }
+            continue
         out[text_id] = {
             "id": text_id,
             "z_index": int(text_id),
@@ -224,7 +256,7 @@ def render(
             "width": cfg.tile_width,
             "text": label,
             "font": cfg.font,
-            "color": state_color(s.top_state, cfg, blink_on, text=True),
+            "color": label_color,
         }
     return out
 

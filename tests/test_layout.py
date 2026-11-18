@@ -6,6 +6,7 @@ from agentbar.layout import (
     OFF,
     blinking,
     dim,
+    icon_for,
     initials,
     labels,
     max_agents,
@@ -15,6 +16,7 @@ from agentbar.layout import (
     select,
     shimmering,
     shown_agents,
+    xpm,
 )
 from agentbar.model import Agent, AgentState, Session
 
@@ -257,3 +259,46 @@ def test_sessions_without_activity_get_no_tile():
     spare.active = False
     ss = [spare, s("a", "/w/agent-bar", AgentState.WORKING, 2)]
     assert [x.session_id for x in select(ss, LayoutConfig())] == ["a"]
+
+
+ROBOT = ("..####..", ".#.##.#.", "..####..")
+
+
+def test_icon_matches_deepest_project_folder():
+    cfg = LayoutConfig(icons={"/w/agentbar": ROBOT, "/w/agentbar/tools": ("#",)})
+    assert icon_for(s("a", "/w/agentbar"), cfg) == ROBOT
+    assert icon_for(s("a", "/w/agentbar/src/x"), cfg) == ROBOT  # subfolder
+    assert icon_for(s("a", "/w/agentbar/tools/y"), cfg) == ("#",)  # deepest wins
+    assert icon_for(s("a", "/w/agentbar2"), cfg) is None  # sibling with a shared prefix
+    assert icon_for(s("a", None), cfg) is None
+
+
+def test_xpm_matches_the_firmware_format():
+    assert xpm(("#.", ".#"), "#FFC000") == "! XPM2\n2 2 2 1\n. c none\n# c #FFC000\n#.\n.#\n"
+
+
+def test_icon_replaces_the_label_in_the_state_colour():
+    cfg = LayoutConfig(icons={"/w/agentbar": ROBOT})
+    out = render([s("a", "/w/agentbar", AgentState.NEEDS_INPUT)], cfg, blink_on=True)
+    assert "101" not in out  # no text label
+    icon = out["105"]
+    assert (icon["type"], icon["z_index"], icon["x"], icon["y"]) == ("xpmbitmap", 105, 16 + 5, 2 + 2)
+    assert icon["data"] == xpm(ROBOT, cfg.colors[AgentState.NEEDS_INPUT])
+    dimmed = render([s("a", "/w/agentbar", AgentState.NEEDS_INPUT)], cfg, blink_on=False)["105"]
+    assert dimmed["data"] == xpm(ROBOT, dim(cfg.colors[AgentState.NEEDS_INPUT], cfg.dim_factor))
+    idle = render([s("a", "/w/agentbar", AgentState.IDLE)], cfg)["105"]
+    assert idle["data"] == xpm(ROBOT, cfg.text_colors[AgentState.IDLE])  # the label colour, not the bar's
+
+
+def test_icon_stays_in_the_label_rows():
+    tall = tuple("#" * 18 for _ in range(8))
+    cfg = LayoutConfig(icons={"/w/p": tall})
+    icon = render([s("a", "/w/p")], cfg)["105"]
+    assert (icon["x"], icon["y"]) == (16, 2)  # rows 2-9, columns 16-33
+
+
+def test_tiles_with_icons_keep_their_other_elements_valid():
+    cfg = LayoutConfig(icons={"/w/agentbar": ROBOT})
+    out = render([with_agents(s("a", "/w/agentbar", AgentState.WORKING), AgentState.WORKING)], cfg)
+    others = [e for e in out.values() if e["type"] != "xpmbitmap"]
+    DisplayElements.model_validate({"application_name": "agentbar", "elements": others})

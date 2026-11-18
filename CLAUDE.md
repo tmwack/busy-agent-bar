@@ -39,6 +39,12 @@ v1 ships only a Claude Code adapter.
   `bab-` fills the 18 px exactly. Four full-width letters (no `- i j l r`),
   or a duplicate digit (`bab1`), are clipped by 1 px, and each `m v w x` adds
   a pixel; also accepted.
+- **Project icons:** per-user config (`[projects."<folder>"] icon = """…"""`)
+  can replace the label with a one-colour pixel mask of `#` and `.`, at most
+  18×8, centred in rows 2–9. It matches sessions whose cwd is that folder or
+  below it, and the deepest folder wins. It's drawn in the label's state colour
+  (and blinks), so the label spot keeps showing state. Full-colour icons were
+  ruled out for that reason (Tyler, 2026-11-18).
 - **Palette** (sent value → how it shows on the LEDs after gamma 2.8 →
   luminance):
 
@@ -104,7 +110,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/adapters/` | Per-harness `normalize(payload, ts, pid) -> AgentEvent`. Register new ones in `__init__.py`. |
 | `src/agentbar/model.py` | `AgentState` (its int value is tile priority), `AgentEvent`, `Session`, `Agent` (a subagent inside a session). `Session.top_state` is the most active state of the session and its agents. |
 | `src/agentbar/registry.py` | Applies events; ignores out-of-order state events; decays DONE→IDLE; drops sessions whose PID died (TTL if no PID is known). Events with an `agent_id` change that agent only, never the session's state. |
-| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Each element's `z_index` is its id. Element ids are `100*(slot+1)` plus an offset: `+0` bar, `+1` label, `+2`/`+3` end caps and `+4` bouncing segment while working, `+10`… agent squares, `+20`… each working agent's bright pixel. |
+| `src/agentbar/layout.py` | Pure function: sessions → draw-element dicts. `initials()` builds labels. Each element's `z_index` is its id. Element ids are `100*(slot+1)` plus an offset: `+0` bar, `+1` label, `+2`/`+3` end caps and `+4` bouncing segment while working, `+5` project icon (instead of the `+1` label), `+10`… agent squares, `+20`… each working agent's bright pixel. |
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking; also wakes on each shimmer frame). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
@@ -154,6 +160,15 @@ saw, so a `/rename` shows on the tile after the next prompt.
 - The bar serves its raw API docs at `http://10.0.4.20/docs`.
 
 **Drawing**
+- Besides the types `busylib` models, the draw API takes `"type": "xpmbitmap"`
+  with inline XPM2 text in `data` (`api_display.c`,
+  `api_display_draw_parse_xpm_element`): up to 32 colours, transparency as
+  `c none`, full colour on the front display. The format
+  (`applications/debug/unit_tests/xpm_test/xpm_test.c`) is
+  `! XPM2\n<w> <h> <ncolors> <cpp>\n. c none\n# c #RRGGBB\n<rows>\n`.
+  `busylib`'s `DisplayElements` rejects the type, so `BusyBarSink` sends draws
+  that contain one with `api_request` and validates only the other elements.
+  Project icons use it (confirmed on the bar, 2026-11-18).
 - Draw: `POST /api/display/draw` with `application_name`, `priority` (1–100,
   default 50), optional `led_notification_color`, and `elements`.
 - Element types: text, image, animation, countdown, rectangle.
@@ -261,6 +276,8 @@ saw, so a `/rename` shows on the tile after the next prompt.
   highest-priority states win).
 - **Tile placement:** tiles fill the region from the left, so a single
   session sits at x=16–33 with two empty slots to its right.
+- **Icon collisions:** two sessions in the same project show the same icon;
+  icons get no duplicate digit.
 - **Label collisions:** different names with the same initials are told apart
   only by the duplicate digit (`bab1`, `bab2`).
 - **Back OLED** for detail: full project name, current tool.

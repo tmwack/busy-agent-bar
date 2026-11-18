@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import tomllib
 from dataclasses import dataclass, field, fields
@@ -11,6 +12,10 @@ from .model import AgentState
 from .paths import config_path
 
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+# A project icon replaces the label and must stay in the label's rows (2-9), so at most
+# 8 rows; it can use the tile's full width.
+ICON_MAX_ROWS = 8
 
 # Values are what is sent; the front display applies gamma 2.8, so they land darker and
 # more saturated (#FFC000 shows as about #FFB300). Amber, not red, for needs input: the
@@ -58,6 +63,9 @@ class LayoutConfig:
     shimmer_factor: float = 0.6  # brightness of a working agent's square behind its bright pixel
     colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_COLORS))
     text_colors: dict[AgentState, str] = field(default_factory=lambda: dict(DEFAULT_TEXT_COLORS))
+    # Project folder (absolute) -> icon mask rows of "#" (lit) and "." (off). From the
+    # [projects."<path>"] tables, not [layout].
+    icons: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass
@@ -83,6 +91,8 @@ def _apply(target: object, table: dict, section: str) -> None:
     for key, value in table.items():
         if key not in known:
             raise ValueError(f"unknown config key [{section}].{key}")
+        if key == "icons":
+            raise ValueError('icons go in [projects."<folder>"] tables, not [layout]')
         if key in ("colors", "text_colors"):
             for name, color in value.items():
                 if not HEX_COLOR.match(color):
@@ -92,16 +102,45 @@ def _apply(target: object, table: dict, section: str) -> None:
         setattr(target, key, value)
 
 
+def parse_icon(text: str, where: str, max_width: int) -> tuple[str, ...]:
+    """An icon mask: rows of "#" and "." (spaces count as "."), padded to one width."""
+    lines = [line.rstrip() for line in text.splitlines()]
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if bad := set("".join(lines)) - {"#", ".", " "}:
+        raise ValueError(f"{where}.icon may only use '#', '.' and spaces, found {''.join(sorted(bad))!r}")
+    if not lines or "#" not in "".join(lines):
+        raise ValueError(f"{where}.icon has no lit pixels (#)")
+    width = max(len(line) for line in lines)
+    if width > max_width or len(lines) > ICON_MAX_ROWS:
+        raise ValueError(f"{where}.icon is {width}x{len(lines)}; the most is {max_width}x{ICON_MAX_ROWS}")
+    return tuple(line.replace(" ", ".").ljust(width, ".") for line in lines)
+
+
+def _apply_projects(cfg: Config, projects: dict) -> None:
+    for folder, table in projects.items():
+        where = f'[projects."{folder}"]'
+        if not isinstance(table, dict) or set(table) - {"icon"}:
+            raise ValueError(f"{where} only supports the key 'icon'")
+        if "icon" in table:
+            # Not resolve(): sessions report their cwd as typed, symlinks and all.
+            key = os.path.normpath(os.path.expanduser(folder))
+            cfg.layout.icons[key] = parse_icon(str(table["icon"]), where, cfg.layout.tile_width)
+
+
 def load(path: Path | None = None) -> Config:
     path = path or config_path()
     cfg = Config()
     if not path.exists():
         return cfg
     data = tomllib.loads(path.read_text())
-    unknown = set(data) - {"busybar", "layout", "timing"}
+    unknown = set(data) - {"busybar", "layout", "timing", "projects"}
     if unknown:
         raise ValueError(f"unknown config sections: {sorted(unknown)}")
     for section in ("busybar", "layout", "timing"):
         if section in data:
             _apply(getattr(cfg, section), data[section], section)
+    _apply_projects(cfg, data.get("projects", {}))  # after [layout], which sets tile_width
     return cfg

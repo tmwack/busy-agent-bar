@@ -178,6 +178,29 @@ busy_retry_s = 5.0
 refresh_s = 60.0
 ```
 
+### Project icons
+
+Give a project a small pixel icon instead of its 4-character label. Draw it with
+`#` (lit) and `.` (off), at most 18 wide and 8 tall:
+
+```toml
+[projects."~/src/twack/busy-agent-bar"]
+icon = """
+....##....
+..######..
+.#..##..#.
+.########.
+..#....#..
+...####...
+"""
+```
+
+The icon applies to sessions started in that folder or any folder under it. If
+several entries match, the deepest folder wins. It's drawn in the session's state
+colour, like the label, so it still blinks amber when the session needs you.
+Restart the daemon after editing the config: `launchctl kickstart -k
+gui/$(id -u)/com.agentbar.daemon`.
+
 ## Development
 
 ### How it works
