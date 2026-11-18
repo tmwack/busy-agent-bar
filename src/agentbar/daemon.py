@@ -11,6 +11,7 @@ import os
 import signal
 import socket
 import time
+from datetime import datetime
 from pathlib import Path
 
 from . import adapters, demo, layout, plugin
@@ -80,23 +81,30 @@ class Daemon:
             path.unlink(missing_ok=True)
 
     async def _run_plugin(self) -> None:
-        """Run the plugin command every interval_s and keep its drawing for the render loop.
+        """Keep the plugin area's drawing up to date for the render loop.
 
-        On failure (exit status, timeout, unusable output) the area shows an amber "!"
-        and the error is logged and reported by `agentbar status`.
+        With no command configured this is the built-in clock, redrawn as each minute
+        starts. A command replaces it and runs every interval_s. On failure (exit status,
+        timeout, unusable output) the area shows an amber "!" and the error is logged and
+        reported by `agentbar status`.
         """
         cfg = self.cfg.plugin
         width = layout.region_x(self.cfg.layout)
-        if not cfg.command:
+        if not cfg.enabled:
             return
         if width < 1:
             log.warning("plugin disabled: the tiles leave no columns on the left ([layout] x)")
             return
-        log.info("plugin: %s every %g s in a %dx%d area", cfg.command, cfg.interval_s, width, plugin.HEIGHT)
+        name = cfg.command or plugin.BUILTIN_CLOCK
+        log.info("plugin: %s in a %dx%d area", name, width, plugin.HEIGHT)
         while not self._stop.is_set():
             started = time.time()
             try:
-                elements = plugin.parse(await self._plugin_output(cfg.command, cfg.timeout_s), width)
+                if cfg.command:
+                    output = await self._plugin_output(cfg.command, cfg.timeout_s)
+                else:
+                    output = plugin.clock_output(datetime.now(), width)
+                elements = plugin.parse(output, width)
                 error = None
             except (plugin.PluginError, OSError) as exc:
                 elements, error = plugin.error_mark(width), str(exc)
@@ -108,11 +116,14 @@ class Daemon:
                     log.warning("plugin failed: %s", error)
                 else:
                     log.info("plugin ok")
-            self.plugin_status = {"command": cfg.command, "last_run": started, "error": error}
+            self.plugin_status = {"command": name, "last_run": started, "error": error}
             self._plugin_elements = {e["id"]: e for e in elements}
             self._wake.set()
+            # The clock wakes just after the minute turns; a command runs every interval_s.
+            clock = datetime.now()
+            wait = cfg.interval_s if cfg.command else 60.05 - clock.second - clock.microsecond / 1e6
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(self._stop.wait(), cfg.interval_s)
+                await asyncio.wait_for(self._stop.wait(), wait)
 
     @staticmethod
     async def _plugin_output(command: str, timeout_s: float) -> str:

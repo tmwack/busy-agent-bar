@@ -12,6 +12,7 @@ area (x 0..width-1, y 0..15). agentbar assigns ids and z_index; other fields are
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from busylib.exceptions import BusyBarError
 from busylib.types import DisplayElements
@@ -21,6 +22,9 @@ MAX_ELEMENTS = 20
 HEIGHT = 16
 TEXT_COLOR = "#FFFFFF"
 ERROR_COLOR = "#FFC000"  # the needs-input amber
+BUILTIN_CLOCK = "built-in clock"  # the default plugin when [plugin] sets no command
+CLOCK_COLOR = "#909090"  # dimmer than white: the tiles, not the clock, should catch the eye
+CLOCK_LINE_COLOR = "#385868"  # the idle bar's dim steel blue
 
 FIELDS = {
     "text": {"x", "y", "text", "font", "color", "width"},
@@ -104,6 +108,18 @@ def _place(item: object, width: int, element_id: str) -> dict:
         if x + w > width or y + h > HEIGHT:
             raise PluginError(f"xpmbitmap {w}x{h} at ({x}, {y}) doesn't fit the {width}x{HEIGHT} area")
     return e
+
+
+def clock_output(now: datetime, width: int) -> str:
+    """The built-in plugin, in the same output contract as a command: the time, and a
+    line along the bottom that fills as the hour passes (examples/clock.sh is the same
+    clock as a command plugin)."""
+    fill = now.minute * width // 60 + 1  # 1..width columns
+    elements = [
+        {"type": "text", "x": 0, "y": 3, "text": f"{now.hour}:{now.minute:02d}", "color": CLOCK_COLOR},
+        {"type": "rectangle", "x": 0, "y": 14, "width": fill, "height": 1, "fill_colors": [CLOCK_LINE_COLOR]},
+    ]
+    return json.dumps({"elements": elements})
 
 
 def error_mark(width: int) -> list[dict]:

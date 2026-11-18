@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from datetime import datetime
 
 import pytest
 
@@ -121,3 +122,28 @@ def test_slow_plugin_is_killed_on_timeout():
     d = run_plugin_once("sleep 5; echo late", timeout_s=0.2)
     assert time.monotonic() - started < 2
     assert d.status()["plugin"]["error"] == "timed out after 0.2 s"
+
+
+def test_builtin_clock_shows_the_time_and_the_hour_passing():
+    text, line = plugin.parse(plugin.clock_output(datetime(2026, 11, 18, 10, 20), 16), 16)
+    assert (text["text"], text["color"], text["y"]) == ("10:20", plugin.CLOCK_COLOR, 3)
+    assert (line["width"], line["y"]) == (6, 14)  # 20 minutes of 60 across 16 columns, plus one
+    _, full = plugin.parse(plugin.clock_output(datetime(2026, 11, 18, 9, 59), 16), 16)
+    assert full["width"] == 16
+
+
+def test_no_command_runs_the_builtin_clock():
+    d = run_plugin_once(None)
+    [text, _] = d._plugin_elements.values()
+    assert ":" in text["text"]
+    assert d.status()["plugin"] == {**d.status()["plugin"], "command": plugin.BUILTIN_CLOCK, "error": None}
+
+
+def test_disabled_plugin_draws_nothing():
+    async def go():
+        d = Daemon(Config(plugin=PluginConfig(enabled=False)), NullSink())
+        await asyncio.wait_for(d._run_plugin(), 1)  # returns at once
+        return d
+
+    d = asyncio.run(go())
+    assert d._plugin_elements == {} and d.status()["plugin"] is None

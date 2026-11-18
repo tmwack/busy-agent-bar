@@ -81,7 +81,8 @@ class TimingConfig:
 
 @dataclass
 class PluginConfig:
-    command: str | None = None  # run with /bin/sh -c; under launchd PATH is minimal, use absolute paths
+    enabled: bool = True  # false: no plugin, and the bar's home screen shows when no session has a tile
+    command: str | None = None  # replaces the built-in clock; run with /bin/sh -c, use absolute paths
     interval_s: float = 30.0
     timeout_s: float = 5.0
 

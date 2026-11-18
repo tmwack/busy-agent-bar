@@ -12,10 +12,13 @@ v1 ships only a Claude Code adapter.
   still WIP). Not a bsbctl plugin (bsbctl is Go-only).
 - **Layout:** a region of side-by-side session tiles on the front display.
   The columns to its left (16 px by default) are the plugin area.
-- **Plugin area:** one plugin at a time, configured as a command
-  (`[plugin] command`, `interval_s`, `timeout_s`) that agentbar runs and whose
+- **Plugin area:** one plugin at a time. The default is a built-in clock
+  (`plugin.clock_output`, redrawn as each minute starts; Tyler, 2026-11-18).
+  A command (`[plugin] command`, `interval_s`, `timeout_s`) replaces it, and
+  `enabled = false` turns the area off. agentbar runs the plugin and draws its
   output (one line of text, or JSON text / rectangle / xpmbitmap elements in
-  area-local coordinates) it draws as part of its own drawing. Other apps can't
+  area-local coordinates) as part of its own drawing. The built-in uses the same
+  output contract as a command. Other apps can't
   share the screen (see Device facts: one application at a time). On failure
   the area shows an amber `!`, and `agentbar status` shows the error (Tyler,
   2026-11-18).

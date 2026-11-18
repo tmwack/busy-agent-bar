@@ -204,16 +204,21 @@ gui/$(id -u)/com.agentbar.daemon`.
 
 ### Plugin
 
-One plugin can draw in the columns left of the tiles: a 16×16 px area with the
-default layout. agentbar runs its command every `interval_s` seconds and draws what
-it prints:
+One plugin draws in the columns left of the tiles: a 16×16 px area with the default
+layout. Out of the box that's a **built-in clock**: the time in grey, and a line
+along the bottom that fills as the hour passes. It updates as each minute starts.
+
+To show something else, give a command. agentbar runs it every `interval_s` seconds
+and draws what it prints in place of the clock:
 
 ```toml
 [plugin]
-command = "/Users/you/src/agentbar/examples/clock.sh"   # run with /bin/sh -c
-interval_s = 30                                         # at least 1
+command = "/Users/you/bin/bar-weather"   # run with /bin/sh -c
+interval_s = 30                          # at least 1
 timeout_s = 5
 ```
+
+To turn the plugin area off, set `enabled = false` under `[plugin]`.
 
 The command prints either **one line of text** (shown in the `small` font, white,
 from the left edge) or **JSON** with up to 20 elements, in coordinates inside the
@@ -237,11 +242,12 @@ area (x 0–15, y 0–15):
   replaces it.
 - The daemon runs under launchd, where `PATH` is only
   `/usr/bin:/bin:/usr/sbin:/sbin`, so use absolute paths.
-- `examples/clock.sh` is a working example: the time, and a line that fills as
-  the hour passes.
+- `examples/clock.sh` is the built-in clock written as a command plugin, a
+  starting point for your own.
 
-The bar shows one application at a time, so with a plugin configured agentbar
-always has something on screen, and the bar's own home screen doesn't appear.
+The bar shows one application at a time. While the plugin is on, agentbar always
+has something on screen, so the bar's own home screen doesn't appear. Set
+`enabled = false` to get it back when no session has a tile.
 
 ## Development
 

@@ -1,6 +1,8 @@
 #!/bin/sh
 # agentbar plugin: the time, and a line along the bottom that fills as the hour passes.
-# Use it with:  [plugin]  command = "/path/to/examples/clock.sh"  interval_s = 30
+# The same clock is built in (it's the default plugin); this is it as a command plugin,
+# a starting point for your own. Use it with:
+#   [plugin]  command = "/path/to/examples/clock.sh"  interval_s = 30
 time=$(date +%-H:%M)
 minute=$(date +%-M)
 fill=$(( minute * 16 / 60 + 1 ))   # 1-16 columns
