@@ -73,7 +73,8 @@ agentbar screen --frames 4       # what the bar shows right now, captured 4 time
 ## Reading the bar
 
 The front display gets a fixed region of `max_tiles` tiles, right-aligned by
-default. The rest of the display is left to other applications. Each tile shows:
+default. The columns to its left (16 px wide by default) are the
+[plugin](#plugin) area. Each tile shows:
 
 - a 4-character label;
 - a row of 2×2 squares, one per running subagent, in that agent's state colour
@@ -201,6 +202,47 @@ colour, like the label, so it still blinks amber when the session needs you.
 Restart the daemon after editing the config: `launchctl kickstart -k
 gui/$(id -u)/com.agentbar.daemon`.
 
+### Plugin
+
+One plugin can draw in the columns left of the tiles: a 16×16 px area with the
+default layout. agentbar runs its command every `interval_s` seconds and draws what
+it prints:
+
+```toml
+[plugin]
+command = "/Users/you/src/agentbar/examples/clock.sh"   # run with /bin/sh -c
+interval_s = 30                                         # at least 1
+timeout_s = 5
+```
+
+The command prints either **one line of text** (shown in the `small` font, white,
+from the left edge) or **JSON** with up to 20 elements, in coordinates inside the
+area (x 0–15, y 0–15):
+
+```json
+{"elements": [
+  {"type": "text", "x": 0, "y": 3, "text": "10:20", "font": "small", "color": "#909090"},
+  {"type": "rectangle", "x": 0, "y": 14, "width": 6, "height": 1, "fill_colors": ["#385868"]},
+  {"type": "xpmbitmap", "x": 12, "y": 0, "data": "! XPM2\n2 2 2 1\n. c none\n# c #FFC000\n#.\n.#\n"}
+]}
+```
+
+- Element types: `text` (`text`, `font`, `color`, `width`), `rectangle` (`width`,
+  `height`, `fill`, `fill_colors`, `border_width`, `border_color`, `radius`) and
+  `xpmbitmap` (inline XPM2 pixel art in `data`, up to 32 colours, `c none` for
+  transparent). Text and rectangles are clipped to the area. Other fields are
+  ignored, and agentbar sets the ids itself.
+- If the command fails, times out or prints something unusable, the area shows a
+  small amber `!` and `agentbar status` shows the error. The next good run
+  replaces it.
+- The daemon runs under launchd, where `PATH` is only
+  `/usr/bin:/bin:/usr/sbin:/sbin`, so use absolute paths.
+- `examples/clock.sh` is a working example: the time, and a line that fills as
+  the hour passes.
+
+The bar shows one application at a time, so with a plugin configured agentbar
+always has something on screen, and the bar's own home screen doesn't appear.
+
 ## Development
 
 ### How it works
@@ -252,9 +294,8 @@ These are assumptions the code makes that couldn't be checked without a bar:
 
 1. Re-posting an element with an existing `id` replaces it rather than adding
    a duplicate. Watch for flicker or ghosting when a tile changes state.
-2. Elements from other applications stay visible next to the tiles.
-3. During a BUSY session, draws fail with 409 and the tiles reappear afterwards.
-4. If `Stop` doesn't fire when you interrupt Claude with Esc, the tile stays
+2. During a BUSY session, draws fail with 409 and the tiles reappear afterwards.
+3. If `Stop` doesn't fire when you interrupt Claude with Esc, the tile stays
    "working" until the next prompt.
 
 ### Adding a harness

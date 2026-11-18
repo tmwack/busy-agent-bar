@@ -11,7 +11,14 @@ v1 ships only a Claude Code adapter.
   through the bar's local HTTP API. Not an on-device JS app (that runtime is
   still WIP). Not a bsbctl plugin (bsbctl is Go-only).
 - **Layout:** a region of side-by-side session tiles on the front display.
-  The rest of the display stays free for other apps.
+  The columns to its left (16 px by default) are the plugin area.
+- **Plugin area:** one plugin at a time, configured as a command
+  (`[plugin] command`, `interval_s`, `timeout_s`) that agentbar runs and whose
+  output (one line of text, or JSON text / rectangle / xpmbitmap elements in
+  area-local coordinates) it draws as part of its own drawing. Other apps can't
+  share the screen (see Device facts: one application at a time). On failure
+  the area shows an amber `!`, and `agentbar status` shows the error (Tyler,
+  2026-11-18).
 - **Subagents:** each running subagent gets a 2×2 square sitting on top of
   its session's bar (up to 6 per tile), coloured by that agent's state. The
   bar keeps the main session's state. The label takes the most active state
@@ -114,6 +121,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/sink.py` | `BusyBarSink`: sends only changed elements; on 409 clears its tiles and retries every `busy_retry_s`. `LogSink` is used for `--dry-run`. |
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking; also wakes on each shimmer frame). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
+| `src/agentbar/plugin.py` | Pure: plugin command output (text or JSON elements) → elements positioned in the plugin area, ids and `z_index` from 900, clipped and checked; `error_mark()` for failures. The daemon runs the command (`/bin/sh -c`, own process group, killed on timeout) and merges the result into every render. |
 | `src/agentbar/demo.py` | Scripted demo scenes (`states`, `agents`) as timed steps of real `AgentEvent`s. `agentbar demo` asks the daemon to play them into a separate registry that it renders instead of the real one, then restores the real tiles (also on Ctrl-C). |
 | `src/agentbar/config.py` | Loads `~/.config/agentbar/config.toml` (all keys optional). Env overrides: `AGENTBAR_CONFIG`, `AGENTBAR_SOCKET`. |
 
@@ -160,6 +168,12 @@ saw, so a `/rename` shows on the tile after the next prompt.
 - The bar serves its raw API docs at `http://10.0.4.20/docs`.
 
 **Drawing**
+- **One application at a time.** When an app with a different
+  `application_name` draws, the firmware deletes every element of the app that
+  was showing (`canvas_srv_do_draw` in `applications/services/canvas/canvas.c`
+  calls `canvas_element_destroy_multi(canvas, NULL)`). So other apps can't draw
+  next to the tiles, and with a plugin configured the bar's home screen never
+  shows.
 - Besides the types `busylib` models, the draw API takes `"type": "xpmbitmap"`
   with inline XPM2 text in `data` (`api_display.c`,
   `api_display_draw_parse_xpm_element`): up to 32 colours, transparency as
@@ -249,19 +263,18 @@ saw, so a `/rename` shows on the tile after the next prompt.
 1. Re-posting an element with an existing `id` updates it in place
    (confirmed 2026-11-14, see Drawing). Still look for ghosting or
    duplicates when a tile changes state.
-2. Other apps' drawings stay visible next to the tiles.
-3. Tiles hide during a BUSY session (409 path) and come back afterwards.
-4. Whether `Stop` fires on an Esc interrupt. If not, the tile stays WORKING
+2. Tiles hide during a BUSY session (409 path) and come back afterwards.
+3. Whether `Stop` fires on an Esc interrupt. If not, the tile stays WORKING
    until the next prompt.
-5. Subagent `PermissionRequest` and `Notification` hooks carry `agent_id`,
+4. Subagent `PermissionRequest` and `Notification` hooks carry `agent_id`,
    and internal agents don't fire `SubagentStart` (no stray squares).
-6. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
+5. On macOS, `--resolve-pid` lands on the Claude Code process. Check the
    `pid` column in `agentbar status`.
-7. Whether the bouncing segment reads as motion at 1 s per frame, and the
+6. Whether the bouncing segment reads as motion at 1 s per frame, and the
    bars stay one even colour after it stops (the `gradient_h` workaround).
-8. Whether a green 2×2 agent square is visible, and whether the bounce or the spinning pixel
+7. Whether a green 2×2 agent square is visible, and whether the bounce or the spinning pixel
    ghosts or flickers.
-9. Whether an idle steel-blue tile is clearly distinct from a done tile next to
+8. Whether an idle steel-blue tile is clearly distinct from a done tile next to
    it.
 
 ## Known gaps / next ideas

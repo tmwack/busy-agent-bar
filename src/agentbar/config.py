@@ -80,10 +80,18 @@ class TimingConfig:
 
 
 @dataclass
+class PluginConfig:
+    command: str | None = None  # run with /bin/sh -c; under launchd PATH is minimal, use absolute paths
+    interval_s: float = 30.0
+    timeout_s: float = 5.0
+
+
+@dataclass
 class Config:
     busybar: BusyBarConfig = field(default_factory=BusyBarConfig)
     layout: LayoutConfig = field(default_factory=LayoutConfig)
     timing: TimingConfig = field(default_factory=TimingConfig)
+    plugin: PluginConfig = field(default_factory=PluginConfig)
 
 
 def _apply(target: object, table: dict, section: str) -> None:
@@ -136,11 +144,13 @@ def load(path: Path | None = None) -> Config:
     if not path.exists():
         return cfg
     data = tomllib.loads(path.read_text())
-    unknown = set(data) - {"busybar", "layout", "timing", "projects"}
+    unknown = set(data) - {"busybar", "layout", "timing", "projects", "plugin"}
     if unknown:
         raise ValueError(f"unknown config sections: {sorted(unknown)}")
-    for section in ("busybar", "layout", "timing"):
+    for section in ("busybar", "layout", "timing", "plugin"):
         if section in data:
             _apply(getattr(cfg, section), data[section], section)
     _apply_projects(cfg, data.get("projects", {}))  # after [layout], which sets tile_width
+    if cfg.plugin.interval_s < 1 or cfg.plugin.timeout_s <= 0:
+        raise ValueError("[plugin] interval_s must be at least 1 and timeout_s above 0")
     return cfg

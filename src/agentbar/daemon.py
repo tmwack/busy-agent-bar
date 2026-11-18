@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import json
 import logging
 import os
@@ -12,7 +13,7 @@ import socket
 import time
 from pathlib import Path
 
-from . import adapters, demo, layout
+from . import adapters, demo, layout, plugin
 from .config import Config
 from .paths import socket_path
 from .registry import Registry
@@ -51,6 +52,8 @@ class Daemon:
         )
         layout.region_x(cfg.layout)  # fail fast on a layout that does not fit
         self._demo: Registry | None = None  # rendered instead of the real registry while a demo plays
+        self._plugin_elements: dict[str, dict] = {}  # the plugin area's latest drawing
+        self.plugin_status: dict | None = None
         self._wake = asyncio.Event()
         self._stop = asyncio.Event()
 
@@ -67,12 +70,72 @@ class Daemon:
             loop.add_signal_handler(sig, self.stop)
         await self.sink.reset()
         log.info("listening on %s", path)
+        plugin_task = asyncio.ensure_future(self._run_plugin())
         try:
             async with server:
                 await self._render_loop()
         finally:
+            plugin_task.cancel()
             await self.sink.reset()
             path.unlink(missing_ok=True)
+
+    async def _run_plugin(self) -> None:
+        """Run the plugin command every interval_s and keep its drawing for the render loop.
+
+        On failure (exit status, timeout, unusable output) the area shows an amber "!"
+        and the error is logged and reported by `agentbar status`.
+        """
+        cfg = self.cfg.plugin
+        width = layout.region_x(self.cfg.layout)
+        if not cfg.command:
+            return
+        if width < 1:
+            log.warning("plugin disabled: the tiles leave no columns on the left ([layout] x)")
+            return
+        log.info("plugin: %s every %g s in a %dx%d area", cfg.command, cfg.interval_s, width, plugin.HEIGHT)
+        while not self._stop.is_set():
+            started = time.time()
+            try:
+                elements = plugin.parse(await self._plugin_output(cfg.command, cfg.timeout_s), width)
+                error = None
+            except (plugin.PluginError, OSError) as exc:
+                elements, error = plugin.error_mark(width), str(exc)
+            except Exception as exc:  # untrusted output must never stop the loop
+                log.exception("plugin output handling failed")
+                elements, error = plugin.error_mark(width), f"internal error: {exc}"
+            if error != (self.plugin_status or {}).get("error"):
+                if error:
+                    log.warning("plugin failed: %s", error)
+                else:
+                    log.info("plugin ok")
+            self.plugin_status = {"command": cfg.command, "last_run": started, "error": error}
+            self._plugin_elements = {e["id"]: e for e in elements}
+            self._wake.set()
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._stop.wait(), cfg.interval_s)
+
+    @staticmethod
+    async def _plugin_output(command: str, timeout_s: float) -> str:
+        proc = await asyncio.create_subprocess_exec(
+            "/bin/sh",
+            "-c",
+            command,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,  # its own process group, so a timeout kills its children too
+        )
+        try:
+            out, err = await asyncio.wait_for(proc.communicate(), timeout_s)
+        except TimeoutError:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
+            await proc.wait()
+            raise plugin.PluginError(f"timed out after {timeout_s:g} s") from None
+        if proc.returncode != 0:
+            detail = err.decode(errors="replace").strip().splitlines()
+            raise plugin.PluginError(f"exit status {proc.returncode}" + (f": {detail[-1][:200]}" if detail else ""))
+        return out.decode(errors="replace")
 
     async def _run_demo(self, msg: dict, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         """Play demo scenes in place of the real sessions, streaming captions to the client.
@@ -126,6 +189,7 @@ class Daemon:
     def status(self) -> dict:
         return {
             "demo": self._demo is not None,
+            "plugin": self.plugin_status,
             "blocked": self.sink.blocked,
             "reachable": self.sink.reachable,
             "sessions": [
@@ -200,7 +264,9 @@ class Daemon:
             # one draw request.
             blink_on = int(mono / half) % 2 == 0
             shimmer_phase = int(mono / step)  # frame count; layout takes each animation's cycle
-            await self.sink.apply(layout.render(sessions, lay, blink_on, shimmer_phase, now, timing.agent_pulse_s))
+            desired = layout.render(sessions, lay, blink_on, shimmer_phase, now, timing.agent_pulse_s)
+            desired.update(self._plugin_elements)  # the plugin keeps showing during a demo
+            await self.sink.apply(desired)
             periods = [
                 p
                 for p, active in (

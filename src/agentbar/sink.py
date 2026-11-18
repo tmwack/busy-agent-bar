@@ -13,7 +13,7 @@ from busylib import AsyncBusyBar
 from busylib.exceptions import BusyBarAPIError, BusyBarError
 from busylib.types import DisplayElements
 
-from . import layout
+from . import layout, plugin
 from .config import BusyBarConfig
 
 log = logging.getLogger(__name__)
@@ -139,7 +139,10 @@ class LogSink:
         self._last = desired
         # Element ids are 100*(slot+1) + offset; see layout.py.
         tiles: dict[int, dict] = {}
+        area = [e for i, e in desired.items() if int(i) >= plugin.FIRST_ID]
         for i, e in sorted(desired.items(), key=lambda kv: int(kv[0])):
+            if int(i) >= plugin.FIRST_ID:
+                continue
             tile = tiles.setdefault(int(i) // 100, {"agents": []})
             offset = int(i) % 100
             if e["type"] == "text":
@@ -153,4 +156,6 @@ class LogSink:
                 tile["segment_x"] = e["x"]
             elif layout.AGENT <= offset < layout.AGENT_PIXEL:
                 tile["agents"].append(e["fill_colors"][0])
+        if area:
+            tiles[0] = {"plugin": [e.get("text", e["type"]) for e in area]}
         log.info("render %s", json.dumps(list(tiles.values())))

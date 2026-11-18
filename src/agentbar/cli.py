@@ -121,6 +121,10 @@ def _status(_: argparse.Namespace) -> int:
     print(f"bar: {'unreachable' if not status['reachable'] else 'yielding to BUSY' if status['blocked'] else 'ok'}")
     if status.get("demo"):
         print("demo: running (real sessions are hidden until it ends)")
+    if plug := status.get("plugin"):
+        ago = int(time.time() - plug["last_run"])
+        state = f"error: {plug['error']}" if plug["error"] else "ok"
+        print(f"plugin: {plug['command']}  ({state}, ran {ago}s ago)")
     now = time.time()
     for s in status["sessions"]:
         age = int(now - s["state_since"])
