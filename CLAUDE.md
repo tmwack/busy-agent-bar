@@ -5,15 +5,20 @@ v1 ships only a Claude Code adapter.
 
 ## Decisions (settled with Tyler)
 
-- **What it shows:** agent state only (working / needs input / done, plus
-  idle). Not usage quota, context %, or Anthropic service status.
+- **What it shows:** the session tiles show agent state only (working /
+  needs input / done, plus idle): not usage quota, context %, or Anthropic
+  service status. The plugin area is the exception, for whatever the user
+  picks, including the built-in token count (Tyler, 2026-11-23).
 - **Where it runs:** a Python daemon on the same Mac as Claude Code, drawing
   through the bar's local HTTP API. Not an on-device JS app (that runtime is
   still WIP). Not a bsbctl plugin (bsbctl is Go-only).
 - **Layout:** a region of side-by-side session tiles on the front display.
   The columns to its left (16 px by default) are the plugin area.
-- **Plugin area:** one plugin at a time. The default is a built-in clock
-  (`plugin.clock_output`, redrawn as each minute starts; Tyler, 2026-11-18).
+- **Plugin area:** one plugin at a time. Built-ins are picked with
+  `[plugin] builtin`: `clock` (the default; `plugin.clock_output`, redrawn as
+  each minute starts; Tyler, 2026-11-18) or `tokens` (today's Claude Code
+  tokens across all sessions, counted by `usage.TokenCounter`; Tyler,
+  2026-11-23).
   A command (`[plugin] command`, `interval_s`, `timeout_s`) replaces it, and
   `enabled = false` turns the area off. agentbar runs the plugin and draws its
   output (one line of text, or JSON text / rectangle / xpmbitmap elements in
@@ -29,7 +34,7 @@ v1 ships only a Claude Code adapter.
   agent has a green label over a still green bar with a spinning square. A square disappears on
   `SubagentStop`.
 - **Sessions:** at most 3 at once. Three 18 px tiles take 56 px and leave
-  16 px for other apps. Rotating through sessions is deferred.
+  16 px for the plugin area. Rotating through sessions is deferred.
 - **Only sessions with activity get a tile:** a session is hidden until its
   first prompt, tool call or subagent. Claude Code fires `SessionStart` for
   processes nobody is using: the pre-started `bg-spare` process its
@@ -125,6 +130,7 @@ Claude Code hooks ─> agentbar-hook ─(unix socket)─> daemon: adapter → re
 | `src/agentbar/daemon.py` | asyncio Unix-socket server and render loop (1 Hz; 2 Hz while blinking; also wakes on each shimmer frame). Full redraw every `refresh_s`. |
 | `src/agentbar/install.py` | Idempotently merges hooks into `~/.claude/settings.json` (backs it up first; leaves non-agentbar hooks alone). Installs the launchd agent `com.agentbar.daemon`. |
 | `src/agentbar/plugin.py` | Pure: plugin command output (text or JSON elements) → elements positioned in the plugin area, ids and `z_index` from 900, clipped and checked; `error_mark()` for failures. The daemon runs the command (`/bin/sh -c`, own process group, killed on timeout) and merges the result into every render. |
+| `src/agentbar/usage.py` | `TokenCounter`: today's tokens (input + output + cache writes + cache reads) from Claude Code's transcripts in `~/.claude/projects`, subagents included. Each message is counted once by `message.id`: one response is split over several entries that repeat its usage (894 entries, 364 messages in one transcript), and forks copy messages. It skips files untouched since midnight, reads only new bytes, and keeps a partly written line for the next pass. |
 | `src/agentbar/demo.py` | Scripted demo scenes (`states`, `agents`) as timed steps of real `AgentEvent`s. `agentbar demo` asks the daemon to play them into a separate registry that it renders instead of the real one, then restores the real tiles (also on Ctrl-C). |
 | `src/agentbar/config.py` | Loads `~/.config/agentbar/config.toml` (all keys optional). Env overrides: `AGENTBAR_CONFIG`, `AGENTBAR_SOCKET`. |
 

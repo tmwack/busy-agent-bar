@@ -90,11 +90,12 @@ class NullSink:
         pass
 
 
-def run_plugin_once(command, timeout_s=2.0):
+def run_plugin_once(command, timeout_s=2.0, builtin="clock"):
     """Start the plugin runner, wait for its first result, stop it."""
 
     async def go():
-        d = Daemon(Config(plugin=PluginConfig(command=command, interval_s=30, timeout_s=timeout_s)), NullSink())
+        cfg = PluginConfig(command=command, builtin=builtin, interval_s=30, timeout_s=timeout_s)
+        d = Daemon(Config(plugin=cfg), NullSink())
         task = asyncio.ensure_future(d._run_plugin())
         while d.plugin_status is None:
             await asyncio.sleep(0.01)
@@ -147,3 +148,18 @@ def test_disabled_plugin_draws_nothing():
 
     d = asyncio.run(go())
     assert d._plugin_elements == {} and d.status()["plugin"] is None
+
+
+def test_compact_fits_four_characters():
+    cases = {812: "812", 8149: "8.1k", 9999: "9.9k", 812_345: "812k", 5_825_349: "5.8M", 12_345_678: "12M"}
+    assert {n: plugin.compact(n) for n in cases} == cases
+    assert all(len(plugin.compact(10**k - 1)) <= 4 for k in range(1, 13))
+
+
+def test_tokens_builtin_draws_todays_total(tmp_path, monkeypatch):
+    from agentbar import usage
+
+    monkeypatch.setattr(usage, "PROJECTS_DIR", tmp_path)  # no transcripts: 0 tokens
+    d = run_plugin_once(None, builtin="tokens")
+    [text] = d._plugin_elements.values()
+    assert text["text"] == "0" and d.status()["plugin"]["command"] == "built-in tokens"

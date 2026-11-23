@@ -205,11 +205,25 @@ gui/$(id -u)/com.agentbar.daemon`.
 ### Plugin
 
 One plugin draws in the columns left of the tiles: a 16×16 px area with the default
-layout. Out of the box that's a **built-in clock**: the time in grey, and a line
-along the bottom that fills as the hour passes. It updates as each minute starts.
+layout. Two are built in, chosen with `builtin`:
+
+| `builtin` | Shows |
+| --- | --- |
+| `clock` (default) | The time in grey, and a line along the bottom that fills as the hour passes. Updates as each minute starts. |
+| `tokens` | Today's Claude Code tokens, all sessions and subagents together, such as `5.8M`. It counts input, output and prompt-cache writes and reads, so it runs high. Updates every `interval_s`. |
+
+```toml
+[plugin]
+builtin = "tokens"
+```
+
+`tokens` reads Claude Code's session transcripts in `~/.claude/projects`, counting
+each message once (Claude Code repeats a message's usage across several transcript
+entries, and copies messages into forked sessions). After the first pass it reads
+only what was added since.
 
 To show something else, give a command. agentbar runs it every `interval_s` seconds
-and draws what it prints in place of the clock:
+and draws what it prints in place of the built-in:
 
 ```toml
 [plugin]

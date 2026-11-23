@@ -14,7 +14,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from . import adapters, demo, layout, plugin
+from . import adapters, demo, layout, plugin, usage
 from .config import Config
 from .paths import socket_path
 from .registry import Registry
@@ -83,8 +83,9 @@ class Daemon:
     async def _run_plugin(self) -> None:
         """Keep the plugin area's drawing up to date for the render loop.
 
-        With no command configured this is the built-in clock, redrawn as each minute
-        starts. A command replaces it and runs every interval_s. On failure (exit status,
+        With no command configured this is a built-in: the clock (redrawn as each minute
+        starts) or today's token count (every interval_s). A command replaces it and runs
+        every interval_s. On failure (exit status,
         timeout, unusable output) the area shows an amber "!" and the error is logged and
         reported by `agentbar status`.
         """
@@ -95,13 +96,17 @@ class Daemon:
         if width < 1:
             log.warning("plugin disabled: the tiles leave no columns on the left ([layout] x)")
             return
-        name = cfg.command or plugin.BUILTIN_CLOCK
+        name = cfg.command or f"built-in {cfg.builtin}"
+        tokens = usage.TokenCounter() if not cfg.command and cfg.builtin == "tokens" else None
         log.info("plugin: %s in a %dx%d area", name, width, plugin.HEIGHT)
         while not self._stop.is_set():
             started = time.time()
             try:
                 if cfg.command:
                     output = await self._plugin_output(cfg.command, cfg.timeout_s)
+                elif tokens is not None:
+                    # A thread: the first read of the day walks every transcript.
+                    output = plugin.tokens_output(await asyncio.to_thread(tokens.update), width)
                 else:
                     output = plugin.clock_output(datetime.now(), width)
                 elements = plugin.parse(output, width)
@@ -119,9 +124,10 @@ class Daemon:
             self.plugin_status = {"command": name, "last_run": started, "error": error}
             self._plugin_elements = {e["id"]: e for e in elements}
             self._wake.set()
-            # The clock wakes just after the minute turns; a command runs every interval_s.
+            # The clock wakes just after the minute turns; the others run every interval_s.
             clock = datetime.now()
-            wait = cfg.interval_s if cfg.command else 60.05 - clock.second - clock.microsecond / 1e6
+            on_the_minute = not cfg.command and cfg.builtin == "clock"
+            wait = 60.05 - clock.second - clock.microsecond / 1e6 if on_the_minute else cfg.interval_s
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), wait)
 

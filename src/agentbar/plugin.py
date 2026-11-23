@@ -122,6 +122,20 @@ def clock_output(now: datetime, width: int) -> str:
     return json.dumps({"elements": elements})
 
 
+def compact(n: int) -> str:
+    """A count in at most 4 characters, to fit 16 px in the small font: 812, 8.1k, 812k, 5.8M, 12M."""
+    for size, suffix in ((10**9, "B"), (10**6, "M"), (10**3, "k")):
+        if n >= size:
+            value = n / size  # truncated, not rounded: never overstates, and 9999 stays "9.9k"
+            return f"{int(value * 10) / 10:.1f}{suffix}" if value < 10 else f"{int(value)}{suffix}"
+    return str(n)
+
+
+def tokens_output(total: int, width: int) -> str:
+    """The built-in tokens plugin: today's Claude Code tokens, all sessions together."""
+    return json.dumps({"elements": [{"type": "text", "x": 0, "y": 3, "text": compact(total), "color": CLOCK_COLOR}]})
+
+
 def error_mark(width: int) -> list[dict]:
     """A small amber "!" in the middle of the area."""
     x = width // 2

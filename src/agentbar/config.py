@@ -79,10 +79,14 @@ class TimingConfig:
     refresh_s: float = 60.0  # periodic full redraw to self-heal
 
 
+BUILTIN_PLUGINS = ("clock", "tokens")
+
+
 @dataclass
 class PluginConfig:
     enabled: bool = True  # false: no plugin, and the bar's home screen shows when no session has a tile
-    command: str | None = None  # replaces the built-in clock; run with /bin/sh -c, use absolute paths
+    builtin: str = "clock"  # "clock", or "tokens" (today's Claude Code tokens)
+    command: str | None = None  # replaces the built-in; run with /bin/sh -c, use absolute paths
     interval_s: float = 30.0
     timeout_s: float = 5.0
 
@@ -152,6 +156,8 @@ def load(path: Path | None = None) -> Config:
         if section in data:
             _apply(getattr(cfg, section), data[section], section)
     _apply_projects(cfg, data.get("projects", {}))  # after [layout], which sets tile_width
+    if cfg.plugin.builtin not in BUILTIN_PLUGINS:
+        raise ValueError(f"[plugin] builtin must be one of {', '.join(BUILTIN_PLUGINS)}")
     if cfg.plugin.interval_s < 1 or cfg.plugin.timeout_s <= 0:
         raise ValueError("[plugin] interval_s must be at least 1 and timeout_s above 0")
     return cfg
